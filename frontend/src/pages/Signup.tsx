@@ -105,7 +105,7 @@ export function Signup() {
                 name="phone"
                 type="tel"
                 autoComplete="tel"
-                pattern="\+?[0-9 \(\)\-]{7,20}"
+                pattern="\+?[0-9][0-9 \(\)\-]{5,18}[0-9]"
                 maxLength={20}
                 required
               />

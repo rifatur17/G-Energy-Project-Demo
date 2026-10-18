@@ -5,7 +5,7 @@ namespace GEnergy.Api.DTOs;
 public sealed record RegisterRequest(
     [Required, StringLength(100, MinimumLength = 2)] string FullName,
     [Required, EmailAddress, StringLength(254)] string Email,
-    [Required, RegularExpression(@"^\+?[0-9 ()-]{7,20}$")] string Phone,
+    [Required, StringLength(20), RegularExpression(@"^\+?[0-9][0-9 ()-]{5,18}[0-9]$")] string Phone,
     [Required, StringLength(128, MinimumLength = 12)] string Password,
     [Required, RegularExpression("^(CarOwner|CarDriver)$", ErrorMessage = "Public registration supports CarOwner or CarDriver only.")] string Role);
 public sealed record LoginRequest(

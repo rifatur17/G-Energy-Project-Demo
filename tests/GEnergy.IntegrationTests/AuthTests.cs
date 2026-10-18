@@ -62,6 +62,15 @@ public sealed class AuthTests
             Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync("/api/auth/register", Registration(role: role))).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync("/api/auth/register", new { fullName = " ", email = "invalid", phone = "abc", password = "short", role = "CarOwner" })).StatusCode);
     }
+    [Theory]
+    [InlineData("+12345678901234567890")]
+    [InlineData("-------")]
+    public async Task Invalid_phone_is_rejected_before_database_write(string phone)
+    {
+        await using var app = new AuthFactory(); using var client = app.CreateClient();
+        var response = await client.PostAsJsonAsync("/api/auth/register", new { fullName = "Demo Owner", email = "phone@example.test", phone, password = Password, role = "CarOwner" });
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
     [Fact]
     public async Task Login_failure_is_generic_and_client_role_is_ignored()
     {
