@@ -25,6 +25,103 @@ namespace GEnergy.Api.Data.Migrations
             modelBuilder.HasSequence("UserCodeNumbers")
                 .StartsAt(1001L);
 
+            modelBuilder.Entity("GEnergy.Api.Entities.Charger", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("ChargerCode")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("ConnectorType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<decimal>("PowerKW")
+                        .HasPrecision(8, 2)
+                        .HasColumnType("decimal(8,2)");
+
+                    b.Property<decimal>("PricePerKWh")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("decimal(10,2)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<long>("StationId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(16)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StationId", "ChargerCode")
+                        .IsUnique();
+
+                    b.ToTable("Chargers", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Chargers_Connector", "[ConnectorType] IN ('CCS2','Type2','CHAdeMO')");
+
+                            t.HasCheckConstraint("CK_Chargers_Positive", "[PowerKW] > 0 AND [PricePerKWh] > 0");
+
+                            t.HasCheckConstraint("CK_Chargers_Status", "[Status] IN ('Available','Reserved','Charging','Offline')");
+                        });
+                });
+
+            modelBuilder.Entity("GEnergy.Api.Entities.Station", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Address")
+                        .IsRequired()
+                        .HasMaxLength(250)
+                        .HasColumnType("nvarchar(250)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsDemo")
+                        .HasColumnType("bit");
+
+                    b.Property<decimal>("Latitude")
+                        .HasPrecision(9, 6)
+                        .HasColumnType("decimal(9,6)");
+
+                    b.Property<decimal>("Longitude")
+                        .HasPrecision(9, 6)
+                        .HasColumnType("decimal(9,6)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Stations", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Stations_Coordinates", "[Latitude] BETWEEN -90 AND 90 AND [Longitude] BETWEEN -180 AND 180");
+                        });
+                });
+
             modelBuilder.Entity("GEnergy.Api.Entities.User", b =>
                 {
                     b.Property<long>("Id")
@@ -87,6 +184,147 @@ namespace GEnergy.Api.Data.Migrations
                         {
                             t.HasCheckConstraint("CK_Users_Role", "[Role] IN ('Admin','CarOwner','CarDriver')");
                         });
+                });
+
+            modelBuilder.Entity("GEnergy.Api.Entities.Vehicle", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<decimal>("BatteryCapacityKWh")
+                        .HasPrecision(8, 2)
+                        .HasColumnType("decimal(8,2)");
+
+                    b.Property<decimal>("BatteryPercent")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<string>("ConnectorType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<decimal>("ConsumptionKWhPerKm")
+                        .HasPrecision(8, 4)
+                        .HasColumnType("decimal(8,4)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Model")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<long>("OwnerUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("RegistrationNo")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OwnerUserId");
+
+                    b.HasIndex("RegistrationNo")
+                        .IsUnique();
+
+                    b.ToTable("Vehicles", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Vehicles_Battery", "[BatteryPercent] >= 0 AND [BatteryPercent] <= 100 AND [BatteryCapacityKWh] > 0 AND [ConsumptionKWhPerKm] > 0");
+
+                            t.HasCheckConstraint("CK_Vehicles_Connector", "[ConnectorType] IN ('CCS2','Type2','CHAdeMO')");
+                        });
+                });
+
+            modelBuilder.Entity("GEnergy.Api.Entities.VehicleDriver", b =>
+                {
+                    b.Property<long>("VehicleId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("DriverUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<bool>("CanCharge")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("VehicleId", "DriverUserId");
+
+                    b.HasIndex("DriverUserId");
+
+                    b.ToTable("VehicleDrivers");
+                });
+
+            modelBuilder.Entity("GEnergy.Api.Entities.Charger", b =>
+                {
+                    b.HasOne("GEnergy.Api.Entities.Station", "Station")
+                        .WithMany("Chargers")
+                        .HasForeignKey("StationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Station");
+                });
+
+            modelBuilder.Entity("GEnergy.Api.Entities.Vehicle", b =>
+                {
+                    b.HasOne("GEnergy.Api.Entities.User", "Owner")
+                        .WithMany()
+                        .HasForeignKey("OwnerUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Owner");
+                });
+
+            modelBuilder.Entity("GEnergy.Api.Entities.VehicleDriver", b =>
+                {
+                    b.HasOne("GEnergy.Api.Entities.User", "Driver")
+                        .WithMany()
+                        .HasForeignKey("DriverUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("GEnergy.Api.Entities.Vehicle", "Vehicle")
+                        .WithMany("Drivers")
+                        .HasForeignKey("VehicleId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Driver");
+
+                    b.Navigation("Vehicle");
+                });
+
+            modelBuilder.Entity("GEnergy.Api.Entities.Station", b =>
+                {
+                    b.Navigation("Chargers");
+                });
+
+            modelBuilder.Entity("GEnergy.Api.Entities.Vehicle", b =>
+                {
+                    b.Navigation("Drivers");
                 });
 #pragma warning restore 612, 618
         }

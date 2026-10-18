@@ -5,8 +5,13 @@ namespace GEnergy.Api.Data;
 public sealed class EnergyDbContext(DbContextOptions<EnergyDbContext> options) : DbContext(options)
 {
     public DbSet<User> Users => Set<User>();
+    public DbSet<Vehicle> Vehicles => Set<Vehicle>();
+    public DbSet<VehicleDriver> VehicleDrivers => Set<VehicleDriver>();
+    public DbSet<Station> Stations => Set<Station>();
+    public DbSet<Charger> Chargers => Set<Charger>();
     protected override void OnModelCreating(ModelBuilder model)
     {
+        model.ConfigureMobility();
         model.HasSequence<long>("UserCodeNumbers").StartsAt(1001);
         var u = model.Entity<User>();
         u.ToTable("Users", t => t.HasCheckConstraint("CK_Users_Role", "[Role] IN ('Admin','CarOwner','CarDriver')"));
