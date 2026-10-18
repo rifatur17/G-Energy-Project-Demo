@@ -7,8 +7,8 @@ public sealed class VehicleAccess(EnergyDbContext db)
 {
     public Task<bool> CanViewAsync(long vehicleId, long userId, CancellationToken ct = default) => db.Vehicles.AnyAsync(v => v.Id == vehicleId &&
         (v.OwnerUserId == userId || v.Drivers.Any(d => d.DriverUserId == userId && d.IsActive && d.Driver.IsActive && d.Driver.Role == Roles.CarDriver)), ct);
-    public Task<bool> CanChargeAsync(long vehicleId, long userId, CancellationToken ct = default) => db.Vehicles.AnyAsync(v => v.Id == vehicleId &&
-        ((v.OwnerUserId == userId && v.Owner.IsActive && v.Owner.Role == Roles.CarOwner) || v.Drivers.Any(d => d.DriverUserId == userId && d.IsActive && d.CanCharge && d.Driver.IsActive && d.Driver.Role == Roles.CarDriver)), ct);
+    public Task<bool> CanChargeAsync(long vehicleId, long userId, CancellationToken ct = default) => db.Vehicles.AnyAsync(v => v.Id == vehicleId && v.Owner.IsActive && v.Owner.Role == Roles.CarOwner &&
+        ((v.OwnerUserId == userId) || v.Drivers.Any(d => d.DriverUserId == userId && d.IsActive && d.CanCharge && d.Driver.IsActive && d.Driver.Role == Roles.CarDriver)), ct);
 }
 public interface IVehicleActivityGuard
 {

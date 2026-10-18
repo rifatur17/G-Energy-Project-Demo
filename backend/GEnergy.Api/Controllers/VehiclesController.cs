@@ -16,9 +16,9 @@ public sealed class VehiclesController(EnergyDbContext db, CurrentUser current, 
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<VehicleResponse>>> List(CancellationToken ct)
     {
-        var vehicles = await db.Vehicles.AsNoTracking().Include(v => v.Drivers).ThenInclude(d => d.Driver)
+        var vehicles = await db.Vehicles.AsNoTracking().Include(v => v.Owner).Include(v => v.Drivers).ThenInclude(d => d.Driver)
             .Where(v => v.OwnerUserId == current.Id || v.Drivers.Any(d => d.DriverUserId == current.Id && d.IsActive && d.Driver.IsActive && d.Driver.Role == Roles.CarDriver)).OrderBy(v => v.Id).ToListAsync(ct);
-        return Ok(vehicles.Select(v => VehicleResponse.From(v, v.OwnerUserId == current.Id || v.Drivers.Any(d => d.DriverUserId == current.Id && d.IsActive && d.CanCharge && d.Driver.IsActive && d.Driver.Role == Roles.CarDriver))));
+        return Ok(vehicles.Select(v => VehicleResponse.From(v, v.Owner.IsActive && v.Owner.Role == Roles.CarOwner && (v.OwnerUserId == current.Id || v.Drivers.Any(d => d.DriverUserId == current.Id && d.IsActive && d.CanCharge && d.Driver.IsActive && d.Driver.Role == Roles.CarDriver)))));
     }
     [HttpGet("{id:long}")]
     public async Task<ActionResult<VehicleResponse>> Details(long id, CancellationToken ct)
