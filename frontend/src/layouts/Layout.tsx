@@ -5,7 +5,7 @@ export function Layout() {
   const { user, logout } = useAuth();
   return (
     <div className="app">
-      <header>
+      <header className={user ? "signed-in" : undefined}>
         <Link className="brand" to="/">
           <span className="brand-mark" aria-hidden="true">
             ϟ
@@ -16,6 +16,8 @@ export function Layout() {
           {user ? (
             <>
               <Link to={dashboardPath(user.role)}>Dashboard</Link>
+              {user.role !== "Admin" && <Link to="/vehicles">Vehicles</Link>}
+              <Link to="/stations">Stations</Link>
               <button className="text-button" onClick={logout}>
                 Log out
               </button>

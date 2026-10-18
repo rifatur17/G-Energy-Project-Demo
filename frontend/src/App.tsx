@@ -5,6 +5,9 @@ import { Layout } from "./layouts/Layout";
 import { Protected } from "./features/auth/Protected";
 import { Login } from "./pages/Login";
 import { Signup } from "./pages/Signup";
+import { Vehicles } from "./pages/Vehicles";
+import { VehicleDetails } from "./pages/VehicleDetails";
+import { Stations } from "./pages/Stations";
 import { Dashboard } from "./pages/Dashboard";
 function Home() {
   const { user, loading } = useAuth();
@@ -31,6 +34,15 @@ export default function App() {
             />
           </Route>
         ))}
+        <Route element={<Protected roles={["CarOwner", "CarDriver"]} />}>
+          <Route path="vehicles" element={<Vehicles />} />
+          <Route path="vehicles/:id" element={<VehicleDetails />} />
+        </Route>
+        <Route
+          element={<Protected roles={["Admin", "CarOwner", "CarDriver"]} />}
+        >
+          <Route path="stations" element={<Stations />} />
+        </Route>
         <Route
           path="*"
           element={

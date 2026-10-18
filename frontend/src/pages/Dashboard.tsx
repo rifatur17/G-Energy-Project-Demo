@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { useAuth } from "../features/auth/AuthContext";
 import { type Role } from "../services/api";
 import { CopyCode } from "../components/CopyCode";
@@ -100,13 +101,32 @@ export function Dashboard({ role }: { role: Role }) {
         <section>
           <h2 className="section-title">Your workspace</h2>
           <p className="subtitle">
-            Authentication is ready. Feature modules will connect here.
+            Explore vehicles and discovery. Charging and payments will connect
+            next.
           </p>
           <div className="module-grid">
             {modules[role].map((m) => (
               <article className="module-card" key={m.title}>
-                <span className="module-status">AWAITING INTEGRATION</span>
-                <h3>{m.title}</h3>
+                <span className="module-status">
+                  {m.owner === "Member 2"
+                    ? "READY TO EXPLORE"
+                    : "AWAITING INTEGRATION"}
+                </span>
+                <h3>
+                  {m.owner === "Member 2" ? (
+                    <Link
+                      to={
+                        m.title === "Find a charging point"
+                          ? "/stations"
+                          : "/vehicles"
+                      }
+                    >
+                      {m.title} ↗
+                    </Link>
+                  ) : (
+                    m.title
+                  )}
+                </h3>
                 <p>{m.description}</p>
                 <span className="hint">{m.owner}</span>
               </article>

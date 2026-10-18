@@ -1,7 +1,7 @@
 import { Navigate, Outlet } from "react-router-dom";
 import { useAuth } from "./AuthContext";
 import { dashboardPath, type Role } from "../../services/api";
-export function Protected({ role }: { role: Role }) {
+export function Protected({ role, roles }: { role?: Role; roles?: Role[] }) {
   const auth = useAuth();
   if (auth.loading)
     return (
@@ -18,7 +18,7 @@ export function Protected({ role }: { role: Role }) {
       </div>
     );
   if (!auth.user) return <Navigate to="/login" replace />;
-  if (auth.user.role !== role)
+  if (!(roles ?? (role ? [role] : [])).includes(auth.user.role))
     return <Navigate to={dashboardPath(auth.user.role)} replace />;
   return <Outlet />;
 }

@@ -38,8 +38,8 @@ export function Intro({ signup = false }: { signup?: boolean }) {
         </div>
       </div>
       <p className="disclaimer">
-        Prototype foundation. Stations, vehicles, charging and payments are
-        planned team modules.
+        Demo vehicles and sample station discovery are ready. Charging and
+        payments will connect next.
       </p>
     </aside>
   );
