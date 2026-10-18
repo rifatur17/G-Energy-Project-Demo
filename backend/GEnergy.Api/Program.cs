@@ -87,7 +87,8 @@ app.UseAuthorization();
 app.MapControllers();
 if (args.Contains("--seed-admin"))
 {
-    await AdminSeeder.SeedAsync(app.Services, app.Configuration, app.Environment);
+    var adminCode = await AdminSeeder.SeedAsync(app.Services, app.Configuration, app.Environment);
+    Console.WriteLine($"Admin UserCode: {adminCode}");
     return;
 }
 app.Run();

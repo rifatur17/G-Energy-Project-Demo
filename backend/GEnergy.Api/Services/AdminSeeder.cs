@@ -7,7 +7,7 @@ namespace GEnergy.Api.Services;
 
 public static class AdminSeeder
 {
-    public static async Task SeedAsync(IServiceProvider services, IConfiguration config, IHostEnvironment env)
+    public static async Task<string> SeedAsync(IServiceProvider services, IConfiguration config, IHostEnvironment env)
     {
         if (!env.IsDevelopment()) throw new InvalidOperationException("Admin bootstrap is development-only.");
         var email = config["AdminSeed:Email"]?.Trim() ?? "";
@@ -20,7 +20,7 @@ public static class AdminSeeder
         if (existing is not null)
         {
             if (existing.Role != Roles.Admin) throw new InvalidOperationException("Seed email already belongs to a non-Admin account.");
-            return;
+            return existing.UserCode;
         }
         var user = new User
         {
@@ -34,5 +34,6 @@ public static class AdminSeeder
         user.PasswordHash = scope.ServiceProvider.GetRequiredService<IPasswordHasher<User>>().HashPassword(user, password);
         db.Users.Add(user);
         await db.SaveChangesAsync();
+        return user.UserCode;
     }
 }
