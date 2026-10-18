@@ -58,12 +58,16 @@ builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationSc
 });
 builder.Services.AddAuthorization(o =>
 {
+    o.AddPolicy("VehicleUser", p => p.RequireAuthenticatedUser().RequireRole(Roles.CarOwner, Roles.CarDriver));
     foreach (var role in Roles.All) o.AddPolicy(role, p => p.RequireAuthenticatedUser().RequireRole(role));
     o.AddPolicy("ResourceOwner", p => p.RequireAuthenticatedUser().AddRequirements(new ResourceOwnerRequirement()));
 });
 builder.Services.AddSingleton<IAuthorizationHandler, ResourceOwnerHandler>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<CurrentUser>();
+builder.Services.AddScoped<VehicleAccess>();
+builder.Services.AddScoped<IChargerAvailabilityProvider, ConfiguredChargerAvailability>();
+builder.Services.AddScoped<IVehicleActivityGuard, NoBookingModuleActivityGuard>();
 builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
 builder.Services.AddScoped<IUserCodeGenerator, UserCodeGenerator>();
 builder.Services.AddScoped<TokenService>();
@@ -85,6 +89,12 @@ app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+if (args.Contains("--seed-discovery"))
+{
+    await DiscoverySeeder.SeedAsync(app.Services, app.Environment);
+    Console.WriteLine("Sample discovery locations seeded. These are not verified charging stations.");
+    return;
+}
 if (args.Contains("--seed-admin"))
 {
     var adminCode = await AdminSeeder.SeedAsync(app.Services, app.Configuration, app.Environment);
