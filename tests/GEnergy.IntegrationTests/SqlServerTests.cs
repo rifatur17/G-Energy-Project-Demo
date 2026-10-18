@@ -2,6 +2,8 @@ using System.Net;
 using System.Net.Http.Json;
 using GEnergy.Api.Data;
 using GEnergy.Api.DTOs;
+using GEnergy.Api.Entities;
+using GEnergy.Api.Services;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.SqlClient;
@@ -64,6 +66,42 @@ public sealed class SqlServerTests
             Assert.StartsWith("GEnergy_AuthTests_", connection.InitialCatalog);
             using var scope = app.Services.CreateScope();
             await scope.ServiceProvider.GetRequiredService<EnergyDbContext>().Database.EnsureDeletedAsync();
+        }
+    }
+    [SqlServerFact]
+    public async Task Mobility_migration_constraints_rowversion_and_serialized_writes()
+    {
+        var database = "GEnergy_MobilityTests_" + Guid.NewGuid().ToString("N");
+        var connection = new SqlConnectionStringBuilder(Environment.GetEnvironmentVariable("G_ENERGY_TEST_SQLSERVER")) { InitialCatalog = database };
+        await using var app = new SqlFactory(connection.ConnectionString); using var client = app.CreateClient();
+        try
+        {
+            using (var scope = app.Services.CreateScope()) await scope.ServiceProvider.GetRequiredService<EnergyDbContext>().Database.MigrateAsync();
+            var register = await client.PostAsJsonAsync("/api/auth/register", new { fullName = "SQL Owner", email = "sql-owner@example.test", phone = "01700000000", password = "SQL-test-only-passphrase", role = "CarOwner" });
+            var user = (await register.Content.ReadFromJsonAsync<UserResponse>())!;
+            var login = await client.PostAsJsonAsync("/api/auth/login", new { userCode = user.UserCode, password = "SQL-test-only-passphrase" });
+            client.DefaultRequestHeaders.Authorization = new("Bearer", (await login.Content.ReadFromJsonAsync<LoginResponse>())!.AccessToken);
+            var input = new VehicleRequest("SQL-VEHICLE", "Demo EV", "CCS2", 50, 40, 0.18m);
+            var created = await client.PostAsJsonAsync("/api/vehicles", input); Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+            var vehicle = (await created.Content.ReadFromJsonAsync<VehicleResponse>())!; Assert.Equal(8, Convert.FromBase64String(vehicle.RowVersion).Length); Assert.Equal(DateTimeKind.Utc, vehicle.CreatedAtUtc.Kind);
+            Assert.Equal(HttpStatusCode.Conflict, (await client.PostAsJsonAsync("/api/vehicles", input)).StatusCode);
+            async Task<HttpResponseMessage> Update(decimal battery)
+            { using var request = new HttpRequestMessage(HttpMethod.Put, $"/api/vehicles/{vehicle.Id}") { Content = JsonContent.Create(input with { BatteryPercent = battery }) }; request.Headers.TryAddWithoutValidation("If-Match", vehicle.RowVersion); return await client.SendAsync(request); }
+            var writes = await Task.WhenAll(Update(50), Update(60)); Assert.Single(writes, r => r.StatusCode == HttpStatusCode.OK); Assert.Single(writes, r => r.StatusCode == HttpStatusCode.Conflict);
+            var after = (await client.GetFromJsonAsync<VehicleResponse>($"/api/vehicles/{vehicle.Id}"))!; Assert.NotEqual(vehicle.RowVersion, after.RowVersion);
+            using (var scope = app.Services.CreateScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<EnergyDbContext>();
+                db.Vehicles.Add(new Vehicle { OwnerUserId = user.Id, RegistrationNo = "INVALID", Model = "Invalid", ConnectorType = "CCS2", BatteryCapacityKWh = 50, BatteryPercent = 101, ConsumptionKWhPerKm = 0.18m });
+                await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync());
+            }
+            await DiscoverySeeder.SeedAsync(app.Services, app.Services.GetRequiredService<Microsoft.Extensions.Hosting.IHostEnvironment>());
+            Assert.Equal(5, (await client.GetFromJsonAsync<StationResponse[]>("/api/stations"))!.Length);
+        }
+        finally
+        {
+            Assert.StartsWith("GEnergy_MobilityTests_", connection.InitialCatalog);
+            using var scope = app.Services.CreateScope(); await scope.ServiceProvider.GetRequiredService<EnergyDbContext>().Database.EnsureDeletedAsync();
         }
     }
     private sealed class SqlFactory(string connection) : WebApplicationFactory<Program>
