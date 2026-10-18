@@ -2,4 +2,7 @@
   <Folder Name="/backend/">
     <Project Path="backend/GEnergy.Api/GEnergy.Api.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/GEnergy.IntegrationTests/GEnergy.IntegrationTests.csproj" />
+  </Folder>
 </Solution>
