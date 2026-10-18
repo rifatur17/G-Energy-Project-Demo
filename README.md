@@ -1,6 +1,6 @@
-# G Energy — Member 1 foundation
+# G Energy — Identity, vehicles and station discovery
 
-React + TypeScript + Vite frontend, ASP.NET Core 10 API, EF Core 10 and SQL Server. This implements identity and shared architecture only. Vehicles, stations, bookings, charging, wallets, payments and Admin operations belong to Members 2–5 and are visibly marked as awaiting integration.
+React + TypeScript + Vite frontend, ASP.NET Core 10 API, EF Core 10 and SQL Server. Includes Member 1 authentication/shared architecture and Member 2 vehicle management, Driver assignments and sample station discovery. Bookings, charging, wallets, payments and Admin operations remain Members 3–5 work.
 
 ## Prerequisites
 
@@ -56,6 +56,20 @@ npm run dev
 ```
 
 Open http://localhost:5173. `VITE_API_BASE_URL` is a public build-time URL, never a secret. If the frontend origin changes, update the backend CORS allowlist. Production hosting must serve index.html for frontend routes such as `/dashboard/owner`; API requests continue to the separately configured API.
+
+## Vehicle and discovery demo
+
+After applying migrations, create Owner/Driver accounts using the existing signup flow. Owners can add vehicles, find a Driver by UserCode and manage CanCharge assignments. Drivers see only active assigned vehicles. The Vehicles and Stations links are available in authenticated navigation.
+
+Seed the five clearly labelled sample locations in a Development shell:
+
+```powershell
+dotnet run --project backend/GEnergy.Api -- --seed-discovery
+```
+
+The command uses the configured SQL Server, is repeatable and does not run in Production. Discovery starts at a selectable demo origin; browser location is optional and requested only by a user click. The map has a list fallback. All distances are approximate straight-line values and all battery data is simulated.
+
+Read [Member 2 API / shared integration contract](docs/member2-api.md) and [Member 2 test evidence / limitations](docs/member2-verification.md) before adding bookings or Admin changes. Member 3 must replace IVehicleActivityGuard and IChargerAvailabilityProvider and enable Modules__BookingEnabled when introducing bookings; the current implementation does not pretend those modules exist.
 
 ## Verify
 

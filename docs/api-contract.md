@@ -1,5 +1,7 @@
 # Authentication API contract
 
+Vehicle, Driver assignment and station routes are documented in [Member 2 API contract](member2-api.md).
+
 Base URL in development: `http://localhost:5080`. JSON uses camelCase. Development-only OpenAPI: `/swagger/v1/swagger.json`; interactive UI: `/swagger`. The Swagger Bearer authorization button accepts the raw access token. Password fields are request-only; user responses always use explicit safe DTOs.
 
 ## POST /api/auth/register — anonymous
@@ -84,4 +86,4 @@ The shared rate limiter allows 20 register/login attempts combined per remote IP
 
 Named policies: `Admin`, `CarOwner`, `CarDriver`, plus `ResourceOwner`. Policies use server-validated claims. Owners never automatically become Admins. ResourceOwner succeeds only when the authenticated `sub` equals the supplied internal owner ID; it does not implement driver assignment logic or an implicit Admin override. Foreign resource access returns 403 (or use a consistent 404 policy in modules that hide resource existence).
 
-No additional module endpoints or role-specific data are implemented here. The role probe endpoints under `/test/policies` exist only in the test assembly, which is not deployed with the API.
+The authentication module does not implement other modules; vehicle and station routes are in the separate Member 2 contract. The role probe endpoints under `/test/policies` exist only in the test assembly, which is not deployed with the API.
