@@ -13,7 +13,7 @@ React + TypeScript + Vite frontend, ASP.NET Core 10 API, EF Core 10 and SQL Serv
 ```powershell
 dotnet tool restore
 dotnet restore
-dotnet user-secrets set 'ConnectionStrings:DefaultConnection' 'Server=(localdb)\MSSQLLocalDB;Database=GEnergy;Integrated Security=True;Encrypt=True;TrustServerCertificate=True' --project backend/GEnergy.Api
+dotnet user-secrets set 'ConnectionStrings:DefaultConnection' 'Server=localhost;Database=GEnergyDb;Integrated Security=True;Encrypt=True;TrustServerCertificate=True' --project backend/GEnergy.Api
 $taskJwtKey = [Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(48))
 dotnet user-secrets set 'Jwt:SigningKey' $taskJwtKey --project backend/GEnergy.Api
 Remove-Variable taskJwtKey
@@ -22,7 +22,7 @@ dotnet ef database update --project backend/GEnergy.Api
 dotnet run --project backend/GEnergy.Api
 ```
 
-The connection above is a local Windows-authentication example. Replace the server and authentication settings for your own instance, using user secrets or environment variables. TrustServerCertificate is for local development only. Migrations run explicitly; startup does not change the database automatically. Never use EnsureCreated for this application.
+The confirmed local development instance is SQL Server MSSQLSERVER at localhost, using Windows Authentication and the shared GEnergyDb database. See [Member 1 real SQL Server evidence](docs/sql-server-member1-verification.md). PowerShell 7 users can run `./scripts/Initialize-DevelopmentDatabase.ps1 -Through Latest` for repeatable non-destructive configuration and migration. The connection above is a local Windows-authentication example. Replace the server and authentication settings for your own instance, using user secrets or environment variables. TrustServerCertificate is for local development only. Migrations run explicitly; startup does not change the database automatically. Never use EnsureCreated for this application.
 
 API: http://localhost:5080. Development Swagger UI: http://localhost:5080/swagger. Use **Authorize** with the login access token to call `/api/auth/me`.
 
