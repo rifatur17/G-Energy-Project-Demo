@@ -73,7 +73,7 @@ Read [Member 2 API / shared integration contract](docs/member2-api.md) and [Memb
 
 ## Admin operations
 
-Provision an Admin with the Development-only bootstrap above. The Admin dashboard reads real API counts; Admin tools manage station/charger configuration and provide read-only booking, session, transaction, wallet and coded user overviews. Changes require review and reject live reservations/charging or stale versions. Owners and Drivers cannot access Admin routes or APIs. See [Member 5 setup/API and QA guide](docs/member5-admin-qa.md) and [actual release verification](docs/member5-verification.md).
+Provision an Admin with the Development-only bootstrap above. The Admin dashboard reads real API counts; Admin tools manage station/charger configuration and provide read-only booking, session, transaction, wallet and coded user overviews. Changes require review and reject live reservations/charging or stale versions. Owners and Drivers cannot access Admin routes or APIs. See [Member 5 setup/API and QA guide](docs/member5-admin-qa.md), [actual release verification](docs/member5-verification.md) and [presentation login/walkthrough](docs/presentation-demo.md).
 
 ## Verify
 
