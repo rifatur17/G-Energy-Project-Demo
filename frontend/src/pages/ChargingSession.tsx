@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useChargingApi, type Session } from "../features/charging/api";
+import { SessionPayment } from "../features/wallet/SessionPayment";
 export function ChargingSession() {
   const api = useChargingApi(),
     { id } = useParams();
@@ -159,6 +160,23 @@ export function ChargingSession() {
                   . Final battery and cost are saved.
                 </p>
               </>
+            )}
+            <SessionPayment
+              session={session}
+              onPaid={(reference) =>
+                setSession({
+                  ...session,
+                  paymentStatus: "Paid",
+                  paymentReference: reference,
+                  settlementNote:
+                    "Paid from demo wallet; no real money transferred.",
+                })
+              }
+            />
+            {session.paymentReference && (
+              <p className="transaction-reference">
+                Payment reference: {session.paymentReference}
+              </p>
             )}
             <p className="settlement-note">
               <strong>Payment: {session.paymentStatus}</strong> ·{" "}

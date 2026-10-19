@@ -777,3 +777,63 @@ code {
     flex-direction: column;
   }
 }
+
+.wallet-page {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding-bottom: 3rem;
+}
+.wallet-overview {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.4rem;
+  margin: 2rem 0;
+}
+.wallet-balance {
+  background: #eaf4eb;
+}
+.wallet-balance > strong {
+  display: block;
+  font-size: clamp(2.2rem, 5vw, 3.6rem);
+  color: #07533c;
+  letter-spacing: -0.04em;
+  margin: 1.5rem 0;
+}
+.wallet-balance small {
+  font-size: 1.1rem;
+  letter-spacing: 0;
+}
+.wallet-overview form select {
+  display: block;
+  margin: 0.5rem 0 1.3rem;
+}
+.wallet-ledger {
+  display: grid;
+  gap: 1rem;
+  margin: 1rem 0 2rem;
+}
+.transaction-card .card-top {
+  flex-wrap: wrap;
+  gap: 0.8rem;
+}
+.transaction-reference {
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+.session-payment {
+  border-top: 1px solid #dae7de;
+  margin-top: 2rem;
+  padding-top: 1rem;
+}
+@media (max-width: 700px) {
+  .wallet-overview {
+    grid-template-columns: 1fr;
+  }
+  .transaction-card .card-top {
+    align-items: flex-start;
+  }
+  .wallet-page .page-heading {
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+}

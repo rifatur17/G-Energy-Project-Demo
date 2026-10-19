@@ -24,7 +24,7 @@ const modules: Record<
     },
     {
       title: "Wallet & receipts",
-      description: "Mock top-ups, billing and payment history.",
+      description: "Simulated top-ups, charging bills and auditable refunds.",
       owner: "Member 4",
     },
   ],
@@ -107,19 +107,21 @@ export function Dashboard({ role }: { role: Role }) {
             {modules[role].map((m) => (
               <article className="module-card" key={m.title}>
                 <span className="module-status">
-                  {m.owner === "Member 2" || m.owner === "Member 3"
+                  {["Member 2", "Member 3", "Member 4"].includes(m.owner)
                     ? "READY TO EXPLORE"
                     : "AWAITING INTEGRATION"}
                 </span>
                 <h3>
-                  {m.owner === "Member 2" || m.owner === "Member 3" ? (
+                  {["Member 2", "Member 3", "Member 4"].includes(m.owner) ? (
                     <Link
                       to={
-                        m.owner === "Member 3"
-                          ? "/bookings"
-                          : m.title === "Find a charging point"
-                            ? "/stations"
-                            : "/vehicles"
+                        m.owner === "Member 4"
+                          ? "/wallet"
+                          : m.owner === "Member 3"
+                            ? "/bookings"
+                            : m.title === "Find a charging point"
+                              ? "/stations"
+                              : "/vehicles"
                       }
                     >
                       {m.title} ↗

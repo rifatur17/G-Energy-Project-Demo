@@ -11,6 +11,7 @@ import { Stations } from "./pages/Stations";
 import { Dashboard } from "./pages/Dashboard";
 import { Bookings } from "./pages/Bookings";
 import { ChargingSession } from "./pages/ChargingSession";
+import { Wallet } from "./pages/Wallet";
 function Home() {
   const { user, loading } = useAuth();
   return loading ? (
@@ -36,6 +37,9 @@ export default function App() {
             />
           </Route>
         ))}
+        <Route element={<Protected role="CarOwner" />}>
+          <Route path="wallet" element={<Wallet />} />
+        </Route>
         <Route element={<Protected roles={["CarOwner", "CarDriver"]} />}>
           <Route path="bookings" element={<Bookings />} />
           <Route path="charging-sessions/:id" element={<ChargingSession />} />

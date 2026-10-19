@@ -23,6 +23,8 @@ export interface Session {
   status: string;
   paymentStatus: string;
   settlementNote: string;
+  payerOwnerUserId?: number;
+  paymentReference?: string | null;
   startedAtUtc: string;
   endedAtUtc: string | null;
   serverTimeUtc: string;
