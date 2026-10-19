@@ -180,7 +180,8 @@ export function ChargingSession() {
             )}
             <p className="settlement-note">
               <strong>Payment: {session.paymentStatus}</strong> ·{" "}
-              {session.settlementNote}.{" "}
+              {session.settlementNote}
+              {session.settlementNote.endsWith(".") ? "" : "."}{" "}
               {session.paymentStatus === "Unpaid" &&
                 "No wallet charge has been made."}
             </p>

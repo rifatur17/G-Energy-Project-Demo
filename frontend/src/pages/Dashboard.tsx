@@ -23,7 +23,7 @@ const modules: Record<
       owner: "Member 3",
     },
     {
-      title: "Wallet & receipts",
+      title: "Wallet & payments",
       description: "Simulated top-ups, charging bills and auditable refunds.",
       owner: "Member 4",
     },

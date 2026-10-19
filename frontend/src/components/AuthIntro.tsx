@@ -38,8 +38,8 @@ export function Intro({ signup = false }: { signup?: boolean }) {
         </div>
       </div>
       <p className="disclaimer">
-        Demo vehicles and sample station discovery are ready. Charging and
-        payments will connect next.
+        Demo vehicles, sample stations, reservations and charging are ready.
+        Wallet payments are simulated; no real money is transferred.
       </p>
     </aside>
   );
