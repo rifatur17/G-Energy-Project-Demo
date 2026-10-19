@@ -17,6 +17,7 @@ public sealed class AuthFactory : WebApplicationFactory<Program>
         builder.UseEnvironment("Development");
         builder.ConfigureAppConfiguration((_, config) => config.AddInMemoryCollection(new Dictionary<string, string?>
         {
+            ["Charging:WorkerEnabled"] = "false",
             ["Jwt:SigningKey"] = Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(48)),
             ["Jwt:Issuer"] = "TestIssuer",
             ["Jwt:Audience"] = "TestAudience"

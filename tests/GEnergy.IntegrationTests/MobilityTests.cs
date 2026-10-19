@@ -130,7 +130,7 @@ public sealed class MobilityTests
     public async Task Enabling_booking_without_adapters_fails_closed()
     {
         await using var source = new AuthFactory();
-        await using var app = source.WithWebHostBuilder(builder => builder.ConfigureAppConfiguration((_, config) => config.AddInMemoryCollection(new Dictionary<string, string?> { ["Modules:BookingEnabled"] = "true" })));
+        await using var app = source.WithWebHostBuilder(builder => builder.ConfigureAppConfiguration((_, config) => config.AddInMemoryCollection(new Dictionary<string, string?> { ["Modules:BookingEnabled"] = "true" })).ConfigureServices(services => { services.RemoveAll<IVehicleActivityGuard>(); services.AddScoped<IVehicleActivityGuard,NoBookingModuleActivityGuard>(); services.RemoveAll<IChargerAvailabilityProvider>(); services.AddScoped<IChargerAvailabilityProvider,ConfiguredChargerAvailability>(); }));
         using var client = app.CreateClient(); await Account(client, "owner@example.test"); var v = await Create(client);
         Assert.Equal(HttpStatusCode.Conflict, (await Mutate(client, HttpMethod.Put, $"/api/vehicles/{v.Id}", v.RowVersion, VehicleBody())).StatusCode);
         await DiscoverySeeder.SeedAsync(app.Services, app.Services.GetRequiredService<Microsoft.Extensions.Hosting.IHostEnvironment>());

@@ -5,6 +5,9 @@ import "@testing-library/jest-dom/vitest";
 import { MemoryRouter } from "react-router-dom";
 import { Stations } from "../pages/Stations";
 import { useMobilityApi } from "../features/mobility/api";
+vi.mock("../features/auth/AuthContext", () => ({
+  useAuth: () => ({ user: { role: "CarOwner" } }),
+}));
 const events = vi.hoisted(() => ({ tileerror: () => {} }));
 vi.mock("../features/mobility/api", async (original) => ({
   ...(await original<typeof import("../features/mobility/api")>()),
@@ -42,32 +45,30 @@ vi.mock("leaflet", () => {
 afterEach(cleanup);
 it("a tile error leaves the real station list and charger details available", async () => {
   vi.mocked(useMobilityApi).mockReturnValue({
-    stations: vi
-      .fn()
-      .mockResolvedValue([
-        {
-          id: 1,
-          name: "Sample Dhaka",
-          address: "Demo location",
-          latitude: 23.8,
-          longitude: 90.4,
-          isDemo: true,
-          chargers: [
-            {
-              id: 1,
-              chargerCode: "DEMO",
-              connectorType: "CCS2",
-              powerKW: 60,
-              pricePerKWh: 25,
-              currency: "BDT",
-              configuredStatus: "Available",
-              effectiveStatus: "Available",
-              isAvailable: true,
-              availabilitySource: "ConfiguredStatus",
-            },
-          ],
-        },
-      ]),
+    stations: vi.fn().mockResolvedValue([
+      {
+        id: 1,
+        name: "Sample Dhaka",
+        address: "Demo location",
+        latitude: 23.8,
+        longitude: 90.4,
+        isDemo: true,
+        chargers: [
+          {
+            id: 1,
+            chargerCode: "DEMO",
+            connectorType: "CCS2",
+            powerKW: 60,
+            pricePerKWh: 25,
+            currency: "BDT",
+            configuredStatus: "Available",
+            effectiveStatus: "Available",
+            isAvailable: true,
+            availabilitySource: "ConfiguredStatus",
+          },
+        ],
+      },
+    ]),
   } as unknown as ReturnType<typeof useMobilityApi>);
   render(
     <MemoryRouter>
@@ -77,7 +78,7 @@ it("a tile error leaves the real station list and charger details available", as
   expect(
     await screen.findByRole("button", { name: "Sample Dhaka" }),
   ).toBeVisible();
-  act(() => events.tileerror());
+  await act(async () => events.tileerror());
   expect(
     screen.getByText(
       "Map tiles are unavailable. All stations and charger details remain in the list.",
