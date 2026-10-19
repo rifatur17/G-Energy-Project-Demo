@@ -1,5 +1,7 @@
 # Member 1 verification evidence
 
+Historical initial-run evidence. The later actual SQL Server verification is in [the SQL Server report](sql-server-member1-verification.md).
+
 Recorded 19 October 2026 (Asia/Dhaka). Implementation reviewed through commit `bfd0aff`; subsequent documentation-only changes do not change the tested code.
 
 ## Environment

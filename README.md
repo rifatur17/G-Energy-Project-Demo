@@ -83,7 +83,9 @@ npm run build
 npm audit
 ```
 
-For SQL Server verification, set `G_ENERGY_TEST_SQLSERVER` to a connection string using a test-only SQL Server with permission to create databases, then run `dotnet test --filter FullyQualifiedName~SqlServerTests` from the repository root. That test creates a random `GEnergy_AuthTests_<guid>` catalog, applies migrations and deletes only that catalog in cleanup. It checks SQL sequence uniqueness, concurrent duplicate email handling, unique UserCode enforcement and SQL-backed login/me. It is explicitly skipped when the variable is unset. Never point test credentials at an environment where creating disposable databases is inappropriate.
+For SQL Server verification, set `G_ENERGY_TEST_SQLSERVER` to a connection string using a test-only SQL Server with permission to create databases, then run `dotnet test --filter FullyQualifiedName~SqlServerTests` from the repository root. Those isolated tests create random `GEnergy_AuthTests_<guid>` / `GEnergy_MobilityTests_<guid>` catalogs, apply migrations and delete only their own new catalogs in cleanup. It checks SQL sequence uniqueness, concurrent duplicate email handling, unique UserCode enforcement and SQL-backed login/me. It is explicitly skipped when the variable is unset. Never point test credentials at an environment where creating disposable databases is inappropriate.
+
+Latest actual SQL Server evidence: [Member 1 identity](docs/sql-server-member1-verification.md) and [Member 2 shared database](docs/sql-server-member2-verification.md). Both existing migrations are applied to GEnergyDb. To include all real-SQL tests, set both G_ENERGY_TEST_SQLSERVER and G_ENERGY_SHARED_SQLSERVER as documented; the latter retains labelled QA records in the shared development database.
 
 See [API contract](docs/api-contract.md), [integration instructions](docs/integration.md) and [verification evidence / limitations](docs/verification.md). Initial identity SQL is available in [docs/initial-identity.sql](docs/initial-identity.sql); EF migrations remain authoritative.
 

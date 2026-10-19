@@ -1,5 +1,7 @@
 # Member 2 verification evidence
 
+Historical initial-run evidence. The later actual SQL Server verification is in [the SQL Server report](sql-server-member2-verification.md).
+
 Recorded 19 October 2026 (Asia/Dhaka). Member 1 history through 62c66a6 was preserved. The repository started clean on main, fetched with no remote divergence, and contained no competing vehicle, station, booking or charging module. One additive migration was generated against that shared baseline. No external team agreement is implied; the concrete contract is in member2-api.md for Members 1/3/4/5 to review.
 
 ## Checks actually executed
