@@ -1,6 +1,6 @@
-# G Energy — Identity, vehicles and station discovery
+# G Energy — EV charging demonstration
 
-React + TypeScript + Vite frontend, ASP.NET Core 10 API, EF Core 10 and SQL Server. Includes Member 1 authentication/shared architecture and Member 2 vehicle management, Driver assignments and sample station discovery. Bookings, charging, wallets, payments and Admin operations remain Members 3–5 work.
+React + TypeScript + Vite frontend, ASP.NET Core 10 API, EF Core 10 and SQL Server. Includes authentication, vehicles and Driver assignments, sample station discovery, reservations, simulated charging, demo wallets/payments/refunds and protected Admin operations.
 
 ## Prerequisites
 
@@ -70,6 +70,10 @@ dotnet run --project backend/GEnergy.Api -- --seed-discovery
 The command uses the configured SQL Server, is repeatable and does not run in Production. Discovery starts at a selectable demo origin; browser location is optional and requested only by a user click. The map has a list fallback. All distances are approximate straight-line values and all battery data is simulated.
 
 Read [Member 2 API / shared integration contract](docs/member2-api.md) and [Member 2 test evidence / limitations](docs/member2-verification.md) before adding bookings or Admin changes. Member 3 now supplies BookingActivityGuard and BookingAvailabilityProvider. Read [booking/charging APIs and Member 4 settlement contract](docs/member3-booking-charging.md) and [Member 3 verification](docs/member3-verification.md). The Bookings & charging navigation connects reservations, the three-minute countdown, simulated charging and history. Member 4 now provides [demo wallets, top-ups, session settlement and refunds](docs/member4-wallet-payment.md). Owners access Wallet in navigation; Drivers continue charging while the Owner pays. All money movements are simulated. See [Member 4 verification](docs/member4-verification.md).
+
+## Admin operations
+
+Provision an Admin with the Development-only bootstrap above. The Admin dashboard reads real API counts; Admin tools manage station/charger configuration and provide read-only booking, session, transaction, wallet and coded user overviews. Changes require review and reject live reservations/charging or stale versions. Owners and Drivers cannot access Admin routes or APIs. See [Member 5 setup/API and QA guide](docs/member5-admin-qa.md) and [actual release verification](docs/member5-verification.md).
 
 ## Verify
 
