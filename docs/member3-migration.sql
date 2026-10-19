@@ -78,4 +78,3 @@ VALUES (N'20261019041722_AddBookingAndCharging', N'10.0.13');
 
 COMMIT;
 GO
-
