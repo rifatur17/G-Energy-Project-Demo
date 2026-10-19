@@ -11,6 +11,9 @@ vi.mock("../services/api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../services/api")>()),
   api: { register: vi.fn(), login: vi.fn(), me: vi.fn() },
 }));
+vi.mock("../features/admin/api", () => ({
+  useAdminApi: () => ({ dashboard: async () => null }),
+}));
 const owner: User = {
   id: 1,
   userCode: "GE-OWN-001001",

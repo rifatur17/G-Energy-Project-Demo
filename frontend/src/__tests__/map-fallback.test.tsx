@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, expect, it, vi } from "vitest";
-import { act, cleanup, render, screen } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { MemoryRouter } from "react-router-dom";
 import { Stations } from "../pages/Stations";
@@ -8,7 +8,7 @@ import { useMobilityApi } from "../features/mobility/api";
 vi.mock("../features/auth/AuthContext", () => ({
   useAuth: () => ({ user: { role: "CarOwner" } }),
 }));
-const events = vi.hoisted(() => ({ tileerror: () => {} }));
+const events = vi.hoisted(() => ({ tileerror: null as (() => void) | null }));
 vi.mock("../features/mobility/api", async (original) => ({
   ...(await original<typeof import("../features/mobility/api")>()),
   useMobilityApi: vi.fn(),
@@ -78,7 +78,8 @@ it("a tile error leaves the real station list and charger details available", as
   expect(
     await screen.findByRole("button", { name: "Sample Dhaka" }),
   ).toBeVisible();
-  await act(async () => events.tileerror());
+  await waitFor(() => expect(events.tileerror).not.toBeNull());
+  await act(async () => events.tileerror?.());
   expect(
     screen.getByText(
       "Map tiles are unavailable. All stations and charger details remain in the list.",
