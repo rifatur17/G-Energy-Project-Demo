@@ -11,10 +11,20 @@ public sealed class EnergyDbContext(DbContextOptions<EnergyDbContext> options) :
     public DbSet<Charger> Chargers => Set<Charger>();
     public DbSet<Booking> Bookings => Set<Booking>();
     public DbSet<ChargingSession> ChargingSessions => Set<ChargingSession>();
+    public DbSet<Wallet> Wallets => Set<Wallet>();
+    public DbSet<WalletTransaction> WalletTransactions => Set<WalletTransaction>();
+    private void ProtectLedger()
+    {
+        if (ChangeTracker.Entries<WalletTransaction>().Any(e => e.State is EntityState.Modified or EntityState.Deleted))
+            throw new InvalidOperationException("Wallet ledger entries are immutable.");
+    }
+    public override int SaveChanges(bool acceptAllChangesOnSuccess) { ProtectLedger();return base.SaveChanges(acceptAllChangesOnSuccess); }
+    public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken ct = default) {ProtectLedger();return base.SaveChangesAsync(acceptAllChangesOnSuccess,ct);}
     protected override void OnModelCreating(ModelBuilder model)
     {
         model.ConfigureMobility();
         model.ConfigureCharging();
+        model.ConfigureWallet();
         model.HasSequence<long>("UserCodeNumbers").StartsAt(1001);
         var u = model.Entity<User>();
         u.ToTable("Users", t => t.HasCheckConstraint("CK_Users_Role", "[Role] IN ('Admin','CarOwner','CarDriver')"));

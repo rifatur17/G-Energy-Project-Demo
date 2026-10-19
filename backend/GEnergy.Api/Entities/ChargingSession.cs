@@ -15,6 +15,7 @@ public sealed class ChargingSession
     public User PayerOwner { get; set; } = null!;
     public string Status { get; set; } = "Active";
     public string PaymentStatus { get; set; } = "Unpaid";
+    public string? PaymentReference { get; set; }
     public string SettlementNote { get; set; } = "Wallet integration pending";
     public DateTime StartedAtUtc { get; set; }
     public DateTime? EndedAtUtc { get; set; }
