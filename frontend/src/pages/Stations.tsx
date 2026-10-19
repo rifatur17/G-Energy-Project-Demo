@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import {
   connectors,
   useMobilityApi,
@@ -10,9 +10,11 @@ import {
   distanceKm,
   type Location,
 } from "../features/discovery/geo";
+import { useAuth } from "../features/auth/AuthContext";
 import { StationMap } from "../features/discovery/StationMap";
 export function Stations() {
   const api = useMobilityApi();
+  const { user } = useAuth();
   const [params] = useSearchParams();
   const requested = params.get("connector") ?? "";
   const [connector, setConnector] = useState(
@@ -57,6 +59,32 @@ export function Stations() {
       active = false;
     };
   }, [api, connector, query, refresh]);
+  useEffect(() => {
+    let active = true,
+      pending = false;
+    const refreshAvailability = async () => {
+      if (pending || document.hidden) return;
+      pending = true;
+      try {
+        const data = await api.stations(connector, query);
+        if (active) {
+          setStations(data);
+          setError("");
+        }
+      } catch (e) {
+        if (active) setError((e as Error).message);
+      } finally {
+        pending = false;
+      }
+    };
+    const timer = setInterval(() => void refreshAvailability(), 3000);
+    window.addEventListener("focus", refreshAvailability);
+    return () => {
+      active = false;
+      clearInterval(timer);
+      window.removeEventListener("focus", refreshAvailability);
+    };
+  }, [api, connector, query]);
   function locate() {
     if (!navigator.geolocation) {
       setLocationMessage(
@@ -249,6 +277,14 @@ export function Stations() {
                     >
                       {c.effectiveStatus}
                     </span>
+                    {user?.role !== "Admin" && c.isAvailable && (
+                      <Link
+                        className="secondary"
+                        to={`/bookings?stationId=${s.id}&chargerId=${c.id}`}
+                      >
+                        Reserve ↗
+                      </Link>
+                    )}
                   </div>
                 ))}
                 {s.chargers.some(
@@ -266,7 +302,8 @@ export function Stations() {
                   </p>
                 )}
                 <p className="booking-note">
-                  Booking will connect here in the reservation module.
+                  Choose a charging point to select your vehicle and reserve for
+                  three minutes.
                 </p>
               </article>
             ))}

@@ -101,24 +101,25 @@ export function Dashboard({ role }: { role: Role }) {
         <section>
           <h2 className="section-title">Your workspace</h2>
           <p className="subtitle">
-            Explore vehicles and discovery. Charging and payments will connect
-            next.
+            Manage vehicles, discover stations and follow your charging journey.
           </p>
           <div className="module-grid">
             {modules[role].map((m) => (
               <article className="module-card" key={m.title}>
                 <span className="module-status">
-                  {m.owner === "Member 2"
+                  {m.owner === "Member 2" || m.owner === "Member 3"
                     ? "READY TO EXPLORE"
                     : "AWAITING INTEGRATION"}
                 </span>
                 <h3>
-                  {m.owner === "Member 2" ? (
+                  {m.owner === "Member 2" || m.owner === "Member 3" ? (
                     <Link
                       to={
-                        m.title === "Find a charging point"
-                          ? "/stations"
-                          : "/vehicles"
+                        m.owner === "Member 3"
+                          ? "/bookings"
+                          : m.title === "Find a charging point"
+                            ? "/stations"
+                            : "/vehicles"
                       }
                     >
                       {m.title} ↗

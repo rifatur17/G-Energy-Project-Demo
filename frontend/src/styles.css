@@ -667,3 +667,113 @@ code {
     font-size: 14px;
   }
 }
+
+/* Booking and simulated charging follow the existing emerald interface. */
+.charging-page {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding-bottom: 3rem;
+}
+.booking-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  gap: 1rem;
+  margin: 1rem 0 2rem;
+}
+.booking-card h3 {
+  margin: 1.3rem 0 0.6rem;
+}
+.booking-card .hint {
+  overflow-wrap: anywhere;
+}
+.action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+  margin-top: 1rem;
+}
+.reservation-form {
+  margin: 1.5rem 0 2rem;
+}
+.reservation-form select {
+  max-width: 460px;
+  display: block;
+  margin: 0.5rem 0 1rem;
+}
+.session-history {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  text-decoration: none;
+  color: inherit;
+}
+.session-panel {
+  max-width: 900px;
+  margin: 2rem auto;
+  padding: clamp(1.2rem, 4vw, 3rem);
+}
+.battery-reading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 2rem 0;
+}
+.battery-reading strong {
+  font-size: clamp(3rem, 8vw, 5rem);
+  color: var(--green, #086650);
+  letter-spacing: -0.06em;
+}
+.battery-reading small {
+  font-size: 1.6rem;
+  letter-spacing: 0;
+}
+.session-panel progress {
+  display: block;
+  width: 100%;
+  height: 1.3rem;
+  accent-color: #087f5b;
+}
+.session-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  padding: 2rem 0;
+}
+.session-stats div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+.session-stats strong {
+  font-size: 1.3rem;
+}
+.session-stats span {
+  font-size: 0.85rem;
+  color: #52665d;
+}
+.settlement-note {
+  background: #f3f7f2;
+  border-radius: 10px;
+  padding: 1rem;
+  margin-top: 1.5rem;
+}
+.charger-row {
+  flex-wrap: wrap;
+  gap: 0.7rem;
+}
+.booking-card [role="timer"] {
+  font-variant-numeric: tabular-nums;
+  color: #087052;
+  font-weight: 600;
+}
+@media (max-width: 650px) {
+  .session-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .charging-page .page-heading {
+    align-items: flex-start;
+    gap: 1rem;
+    flex-direction: column;
+  }
+}
