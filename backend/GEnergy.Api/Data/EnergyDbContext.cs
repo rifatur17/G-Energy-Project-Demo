@@ -9,9 +9,12 @@ public sealed class EnergyDbContext(DbContextOptions<EnergyDbContext> options) :
     public DbSet<VehicleDriver> VehicleDrivers => Set<VehicleDriver>();
     public DbSet<Station> Stations => Set<Station>();
     public DbSet<Charger> Chargers => Set<Charger>();
+    public DbSet<Booking> Bookings => Set<Booking>();
+    public DbSet<ChargingSession> ChargingSessions => Set<ChargingSession>();
     protected override void OnModelCreating(ModelBuilder model)
     {
         model.ConfigureMobility();
+        model.ConfigureCharging();
         model.HasSequence<long>("UserCodeNumbers").StartsAt(1001);
         var u = model.Entity<User>();
         u.ToTable("Users", t => t.HasCheckConstraint("CK_Users_Role", "[Role] IN ('Admin','CarOwner','CarDriver')"));
