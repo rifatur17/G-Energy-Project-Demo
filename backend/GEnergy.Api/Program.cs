@@ -1,4 +1,5 @@
 using System.Text;
+using GEnergy.Api.Services.Charging;
 using System.Threading.RateLimiting;
 using GEnergy.Api.Authorization;
 using GEnergy.Api.Data;
@@ -14,6 +15,13 @@ using Microsoft.OpenApi;
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddProblemDetails();
+builder.Services.AddExceptionHandler<ChargingExceptionHandler>();
+builder.Services.AddOptions<ChargingOptions>().BindConfiguration("Charging")
+    .Validate(o => o.ReservationSeconds is >= 1 and <= 3600 && o.SimulationSpeed is >= 1 and <= 3600 && o.WorkerIntervalMilliseconds is >= 100 and <= 60000,
+        "Invalid booking/charging demo configuration.").ValidateOnStart();
+builder.Services.AddScoped<ChargingService>();
+builder.Services.AddScoped<IChargingSettlement, DeferredChargingSettlement>();
+builder.Services.AddHostedService<ChargingWorker>();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(o =>
 {
@@ -66,8 +74,8 @@ builder.Services.AddSingleton<IAuthorizationHandler, ResourceOwnerHandler>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<CurrentUser>();
 builder.Services.AddScoped<VehicleAccess>();
-builder.Services.AddScoped<IChargerAvailabilityProvider, ConfiguredChargerAvailability>();
-builder.Services.AddScoped<IVehicleActivityGuard, NoBookingModuleActivityGuard>();
+builder.Services.AddScoped<IChargerAvailabilityProvider, BookingAvailabilityProvider>();
+builder.Services.AddScoped<IVehicleActivityGuard, BookingActivityGuard>();
 builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
 builder.Services.AddScoped<IUserCodeGenerator, UserCodeGenerator>();
 builder.Services.AddScoped<TokenService>();
