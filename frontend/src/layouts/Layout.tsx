@@ -18,6 +18,9 @@ export function Layout() {
               <Link to={dashboardPath(user.role)}>Dashboard</Link>
               {user.role !== "Admin" && <Link to="/vehicles">Vehicles</Link>}
               <Link to="/stations">Stations</Link>
+              {user.role === "Admin" && (
+                <Link to="/admin/stations">Admin tools</Link>
+              )}
               {user.role !== "Admin" && (
                 <Link to="/bookings">Bookings & charging</Link>
               )}

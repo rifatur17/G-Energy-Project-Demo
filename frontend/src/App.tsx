@@ -12,6 +12,9 @@ import { Dashboard } from "./pages/Dashboard";
 import { Bookings } from "./pages/Bookings";
 import { ChargingSession } from "./pages/ChargingSession";
 import { Wallet } from "./pages/Wallet";
+import { AdminDashboard } from "./pages/AdminDashboard";
+import { AdminNetwork } from "./pages/AdminNetwork";
+import { AdminMonitor } from "./pages/AdminMonitor";
 function Home() {
   const { user, loading } = useAuth();
   return loading ? (
@@ -33,10 +36,34 @@ export default function App() {
           <Route key={role} element={<Protected role={role} />}>
             <Route
               path={dashboardPath(role)}
-              element={<Dashboard role={role} />}
+              element={
+                role === "Admin" ? (
+                  <AdminDashboard />
+                ) : (
+                  <Dashboard role={role} />
+                )
+              }
             />
           </Route>
         ))}
+        <Route element={<Protected role="Admin" />}>
+          <Route path="admin/stations" element={<AdminNetwork />} />
+          {(
+            [
+              "bookings",
+              "charging-sessions",
+              "wallet-transactions",
+              "users",
+              "wallets",
+            ] as const
+          ).map((kind) => (
+            <Route
+              key={kind}
+              path={`admin/${kind}`}
+              element={<AdminMonitor key={kind} kind={kind} />}
+            />
+          ))}
+        </Route>
         <Route element={<Protected role="CarOwner" />}>
           <Route path="wallet" element={<Wallet />} />
         </Route>

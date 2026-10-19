@@ -837,3 +837,192 @@ code {
     gap: 1rem;
   }
 }
+
+.admin-page {
+  max-width: 1300px;
+  margin: 0 auto;
+  padding-bottom: 3rem;
+}
+.admin-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 1.7rem 0 2rem;
+}
+.admin-nav a {
+  padding: 0.65rem 1rem;
+  border: 1px solid #d7e6dc;
+  border-radius: 999px;
+  color: #255c46;
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+.admin-nav a.active {
+  background: #07583f;
+  color: white;
+  border-color: #07583f;
+}
+.admin-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+  margin: 1.5rem 0;
+}
+.admin-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+}
+.admin-stat span {
+  font-size: 0.85rem;
+  color: #486555;
+}
+.admin-stat strong {
+  font-size: 2.3rem;
+  color: #07583f;
+}
+.admin-money {
+  margin-top: 1.5rem;
+  background: #edf5ee;
+}
+.admin-money dl {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+}
+.admin-money dt {
+  font-size: 0.85rem;
+}
+.admin-money dd {
+  margin: 0.7rem 0;
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #07583f;
+}
+.admin-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.9rem;
+  align-items: end;
+  margin: 1.3rem 0;
+}
+.admin-filters > div {
+  flex: 1;
+  min-width: 140px;
+}
+.admin-filters input,
+.admin-filters select {
+  min-height: 44px;
+  width: 100%;
+}
+.admin-network-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+.admin-station,
+.admin-charger {
+  margin: 1rem 0;
+}
+.admin-station.selected {
+  border-color: #168459;
+  box-shadow: 0 0 0 2px #c1e4cb;
+}
+.admin-editor {
+  margin: 1.5rem 0;
+  background: #f8fbf6;
+}
+.admin-editor fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0 0 1rem;
+  min-width: 0;
+}
+.admin-editor label {
+  display: block;
+  margin: 0.8rem 0 0.4rem;
+}
+.admin-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+.admin-editor .admin-check {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  margin: 1rem 0;
+}
+.admin-check input {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+.admin-confirm {
+  padding: 1rem;
+  background: #eaf3e9;
+  border-radius: 12px;
+  margin: 1rem 0;
+}
+.admin-monitor-list {
+  display: grid;
+  gap: 1rem;
+}
+.monitor-card h2 {
+  font-size: 1.05rem;
+  margin: 0;
+}
+.monitor-card dl {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem 1.6rem;
+  margin-top: 1.3rem;
+}
+.monitor-card dt {
+  font-size: 0.78rem;
+  color: #56705f;
+  margin-bottom: 0.35rem;
+}
+.monitor-card dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: 0.9rem;
+}
+.admin-nav a:focus-visible,
+.admin-page button:focus-visible {
+  outline: 3px solid #d3a44d;
+  outline-offset: 3px;
+}
+@media (max-width: 850px) {
+  .admin-network-grid {
+    grid-template-columns: 1fr;
+  }
+  .admin-money dl {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .monitor-card dl {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 500px) {
+  .admin-form-grid,
+  .monitor-card dl {
+    grid-template-columns: 1fr;
+  }
+  .admin-page .page-heading {
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+  .admin-stats {
+    grid-template-columns: 1fr 1fr;
+  }
+  .admin-stat {
+    padding: 1rem;
+  }
+  .admin-stat strong {
+    font-size: 1.8rem;
+  }
+  .admin-money dl {
+    grid-template-columns: 1fr;
+  }
+}
