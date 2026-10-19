@@ -11,6 +11,10 @@ public sealed class SharedSqlServerFactAttribute : FactAttribute
             Skip = "G_ENERGY_SHARED_SQLSERVER is unset; this additive verification retains labelled QA records in GEnergyDb.";
     }
 }
+// Hosted workers scan the whole shared catalog. Serialize these test hosts so a test
+// clock/settlement participant cannot process another scenario's active session.
+[CollectionDefinition("SharedSqlServer", DisableParallelization = true)]
+public sealed class SharedSqlServerCollection { }
 // Never migrates, resets, creates or deletes the shared database. Setup is an explicit operator step.
 public sealed class SharedSqlServerFactory : WebApplicationFactory<Program>
 {

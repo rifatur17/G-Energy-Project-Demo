@@ -10,6 +10,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 namespace GEnergy.IntegrationTests;
+[Collection("SharedSqlServer")]
 public sealed class SharedMobilitySqlServerTests
 {
     private static async Task<(UserResponse User,LoginResponse Session)> Account(HttpClient client,string email,string role,string password)

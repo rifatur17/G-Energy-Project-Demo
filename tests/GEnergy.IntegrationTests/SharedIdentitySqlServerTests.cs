@@ -9,6 +9,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 namespace GEnergy.IntegrationTests;
+[Collection("SharedSqlServer")]
 public sealed class SharedIdentitySqlServerTests
 {
     [SharedSqlServerFact]

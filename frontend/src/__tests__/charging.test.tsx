@@ -25,6 +25,9 @@ vi.mock("../features/charging/api", async (original) => ({
   useChargingApi: vi.fn(),
 }));
 vi.mock("../features/mobility/api", () => ({ useMobilityApi: vi.fn() }));
+vi.mock("../features/auth/AuthContext", () => ({
+  useAuth: () => ({ user: { id: 1, role: "CarOwner" } }),
+}));
 const now = new Date().toISOString();
 const booking: Booking = {
   id: 7,
@@ -103,34 +106,30 @@ beforeEach(() => {
   calls.booking.mockResolvedValue(booking);
   vi.mocked(useChargingApi).mockReturnValue(calls);
   vi.mocked(useMobilityApi).mockReturnValue({
-    vehicles: vi
-      .fn()
-      .mockResolvedValue([
+    vehicles: vi.fn().mockResolvedValue([
+      {
+        id: 1,
+        registrationNo: "QA-EV",
+        canCharge: true,
+        batteryPercent: 40,
+        connectorType: "CCS2",
+      },
+    ]),
+    station: vi.fn().mockResolvedValue({
+      id: 2,
+      name: "Sample Dhaka",
+      address: "Demo only",
+      isDemo: true,
+      chargers: [
         {
-          id: 1,
-          registrationNo: "QA-EV",
-          canCharge: true,
-          batteryPercent: 40,
+          id: 3,
+          chargerCode: "DC-1",
           connectorType: "CCS2",
+          powerKW: 60,
+          pricePerKWh: 25,
         },
-      ]),
-    station: vi
-      .fn()
-      .mockResolvedValue({
-        id: 2,
-        name: "Sample Dhaka",
-        address: "Demo only",
-        isDemo: true,
-        chargers: [
-          {
-            id: 3,
-            chargerCode: "DC-1",
-            connectorType: "CCS2",
-            powerKW: 60,
-            pricePerKWh: 25,
-          },
-        ],
-      }),
+      ],
+    }),
   } as unknown as ReturnType<typeof useMobilityApi>);
 });
 afterEach(() => {

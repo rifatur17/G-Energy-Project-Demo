@@ -40,10 +40,12 @@ public sealed class ChargingScenario : IAsyncDisposable
     private WebApplicationFactory<Program> parent = null!;
     public HttpClient Client = null!;
     public long Owner, Driver, Stranger, Vehicle, OtherVehicle, Station, Charger, OtherCharger;
+    private string Label = "Member3";
     public string OwnerToken = "", DriverToken = "", StrangerToken = "";
-    public static async Task<ChargingScenario> Create(bool sql = false, bool worker = false)
+    public static async Task<ChargingScenario> Create(bool sql = false, bool worker = false, Action<IServiceCollection>? configure = null, string label = "Member3")
     {
         var s = new ChargingScenario();
+        s.Label = label;
         s.parent = sql ? new SharedSqlServerFactory() : new AuthFactory();
         s.App = s.parent.WithWebHostBuilder(b =>
         {
@@ -52,6 +54,7 @@ public sealed class ChargingScenario : IAsyncDisposable
             {
                 services.RemoveAll<TimeProvider>(); services.AddSingleton<TimeProvider>(s.Clock);
                 services.RemoveAll<IChargingSettlement>(); services.AddSingleton<IChargingSettlement>(s.Settlement);
+                configure?.Invoke(services);
             });
         });
         s.Client = s.App.CreateClient();
@@ -60,11 +63,11 @@ public sealed class ChargingScenario : IAsyncDisposable
         (s.Stranger, s.StrangerToken) = await s.Account("CarOwner");
         await s.Db(async db =>
         {
-            var label = "QA Member3 " + Guid.NewGuid().ToString("N");
-            var station = new Station { Name = label, Address = "Synthetic verification fixture, not a real charging station", Latitude = 23.8m, Longitude = 90.4m };
+            var fixtureLabel = $"QA {label} " + Guid.NewGuid().ToString("N");
+            var station = new Station { Name = fixtureLabel, Address = "Synthetic verification fixture, not a real charging station", Latitude = 23.8m, Longitude = 90.4m };
             var c = new Charger { Station = station, ChargerCode = "QA-CCS-1", ConnectorType = "CCS2", PowerKW = 60, PricePerKWh = 25 };
             var c2 = new Charger { Station = station, ChargerCode = "QA-CCS-2", ConnectorType = "CCS2", PowerKW = 60, PricePerKWh = 25 };
-            Vehicle NewVehicle(string suffix) => new() { OwnerUserId = s.Owner, RegistrationNo = Guid.NewGuid().ToString("N")[..20] + suffix, Model = label, ConnectorType = "CCS2", BatteryCapacityKWh = 50, BatteryPercent = 40, ConsumptionKWhPerKm = 0.18m };
+            Vehicle NewVehicle(string suffix) => new() { OwnerUserId = s.Owner, RegistrationNo = Guid.NewGuid().ToString("N")[..20] + suffix, Model = fixtureLabel, ConnectorType = "CCS2", BatteryCapacityKWh = 50, BatteryPercent = 40, ConsumptionKWhPerKm = 0.18m };
             var v = NewVehicle("1"); var v2 = NewVehicle("2");
             db.AddRange(station, c, c2, v, v2); await db.SaveChangesAsync();
             db.VehicleDrivers.Add(new() { VehicleId = v.Id, DriverUserId = s.Driver, CanCharge = true }); await db.SaveChangesAsync();
@@ -75,7 +78,7 @@ public sealed class ChargingScenario : IAsyncDisposable
     private async Task<(long, string)> Account(string role)
     {
         const string password = "Only-for-labelled-QA-tests-123";
-        var r = await Client.PostAsJsonAsync("/api/auth/register", new { fullName = "QA Member3 verification", email = $"member3-{Guid.NewGuid():N}@example.test", phone = "01700000000", password, role });
+        var r = await Client.PostAsJsonAsync("/api/auth/register", new { fullName = $"QA {Label} verification", email = $"{Label.ToLowerInvariant()}-{Guid.NewGuid():N}@example.test", phone = "01700000000", password, role });
         Assert.Equal(HttpStatusCode.Created, r.StatusCode);
         var u = (await r.Content.ReadFromJsonAsync<UserResponse>())!;
         var login = await Client.PostAsJsonAsync("/api/auth/login", new { u.UserCode, password });
@@ -181,6 +184,7 @@ public sealed class ChargingTests
         var result = ChargingMath.Calculate(session, session.StartedAtUtc.AddSeconds(seconds)); Assert.Equal(energy, result.EnergyKWh); Assert.Equal(battery, result.BatteryPercent); Assert.Equal(energy * 25, result.Cost);
     }
 }
+[Collection("SharedSqlServer")]
 public sealed class ChargingSqlServerTests
 {
     [SharedSqlServerFact]
