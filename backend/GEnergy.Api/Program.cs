@@ -1,4 +1,5 @@
 using System.Text;
+using GEnergy.Api.Services.Admin;
 using GEnergy.Api.Services.Wallets;
 using GEnergy.Api.Services.Charging;
 using System.Threading.RateLimiting;
@@ -21,6 +22,8 @@ builder.Services.AddOptions<ChargingOptions>().BindConfiguration("Charging")
     .Validate(o => o.ReservationSeconds is >= 1 and <= 3600 && o.SimulationSpeed is >= 1 and <= 3600 && o.WorkerIntervalMilliseconds is >= 100 and <= 60000,
         "Invalid booking/charging demo configuration.").ValidateOnStart();
 builder.Services.AddScoped<ChargingService>();
+builder.Services.AddScoped<AdminQueries>();
+builder.Services.AddScoped<AdminNetworkService>();
 builder.Services.AddOptions<WalletOptions>().BindConfiguration("Wallet")
     .Validate(o => o.MaxTransactionAmount > 0 && o.MaxTransactionAmount <= 1000000 && o.MaxBalance >= o.MaxTransactionAmount && o.MaxBalance <= 10000000 && decimal.Round(o.MaxTransactionAmount,2)==o.MaxTransactionAmount && decimal.Round(o.MaxBalance,2)==o.MaxBalance,"Invalid demo wallet limits.").ValidateOnStart();
     builder.Services.AddScoped<IPaymentProvider, MockPaymentProvider>();

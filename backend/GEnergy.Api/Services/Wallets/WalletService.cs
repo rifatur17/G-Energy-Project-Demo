@@ -34,7 +34,7 @@ public sealed class WalletService(EnergyDbContext db, TimeProvider clock, IOptio
     private async Task<WalletTransactionResponse> Dto(WalletTransaction t, CancellationToken ct)
     {
         var refund = await db.WalletTransactions.AsNoTracking().Where(x => x.OriginalTransactionId == t.Id).Select(x => x.Reference).SingleOrDefaultAsync(ct);
-        return new(t.Id, t.Reference, t.Type, t.Status, t.Amount, "BDT", t.Description, t.ChargingSessionId, t.OriginalTransactionId, t.CreatedAtUtc, t.CompletedAtUtc, options.Value.AllowDemoRefunds && t.Type == "ChargingPayment" && t.Status == "Completed" && refund is null, refund);
+        return new(t.Id, t.Reference, t.Type, t.Status, t.Amount, "BDT", t.Description, t.ChargingSessionId, t.OriginalTransactionId, t.CreatedAtUtc, t.CompletedAtUtc, DemoRefundPolicy.CanRefund(t.Type,t.Status,refund is not null,options.Value.AllowDemoRefunds), refund);
     }
     public async Task<IReadOnlyList<WalletTransactionResponse>> History(long user, long? before, int take, CancellationToken ct)
     {
