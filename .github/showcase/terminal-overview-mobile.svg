@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="530" viewBox="0 0 600 530" role="img" aria-labelledby="title desc">
+<title id="title">G Energy</title>
+<desc id="desc">Original project illustration. Moving states and particles explain a workflow, not live service status or measured test results.</desc>
+<defs><linearGradient id="bg"><stop stop-color="#020407"/><stop offset="1" stop-color="#071126"/></linearGradient><radialGradient id="aura"><stop stop-color="#2865c7" stop-opacity=".22"/><stop offset="1" stop-color="#2865c7" stop-opacity="0"/></radialGradient><pattern id="dots" width="18" height="18" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r=".7" fill="#7aaaff" opacity=".12"/></pattern><clipPath id="frame"><rect x="1" y="1" width="598" height="528" rx="12"/></clipPath></defs><g clip-path="url(#frame)"><rect width="600" height="530" fill="url(#bg)"/><ellipse cx="491.99999999999994" cy="238.5" rx="450" ry="400" fill="url(#aura)"/><rect width="600" height="530" fill="url(#dots)"/></g><rect x="1" y="1" width="598" height="528" rx="12" fill="none" stroke="#2d4973"/>
+<text x="28" y="42" font-family="Consolas,Courier New,monospace" font-size="14" fill="#83b5ff" font-weight="600">PROJECT / ENERGY</text>
+<text x="28" y="95" font-family="Segoe UI,Arial,sans-serif" font-size="31" fill="#e9f2ff" font-weight="700">G Energy</text>
+<text x="28" y="132" font-family="Segoe UI,Arial,sans-serif" font-size="19" fill="#afc2dc" font-weight="400">Charging demonstration · React + ASP.NET Core</text>
+<rect x="28" y="166" width="544" height="250" rx="10" fill="#091326" stroke="#2b4771"/>
+<rect x="48.0" y="198" width="156.0" height="58" rx="10" fill="#0b1425" stroke="#2b4771"/>
+<rect x="48.0" y="198" width="156.0" height="58" rx="7" fill="#1b58ab" opacity="0"><animate attributeName="opacity" values="0;.52;0;0" keyTimes="0;.15;.3;1" dur="10s" begin="0s" repeatCount="indefinite"/></rect>
+<text x="126.0" y="233" font-family="Consolas,Courier New,monospace" font-size="17" fill="#c8e1ff" font-weight="600" text-anchor="middle">REACT</text>
+<path d="M204.0 227h18" fill="none" stroke="#294c7d" stroke-width="1.4"/>
+<circle r="4" fill="#87bcff"><animateMotion path="M204.0 227h18" dur="3s" begin="0s" repeatCount="indefinite"/></circle>
+<rect x="222.0" y="198" width="156.0" height="58" rx="10" fill="#0b1425" stroke="#2b4771"/>
+<rect x="222.0" y="198" width="156.0" height="58" rx="7" fill="#1b58ab" opacity="0"><animate attributeName="opacity" values="0;.52;0;0" keyTimes="0;.15;.3;1" dur="10s" begin="-2s" repeatCount="indefinite"/></rect>
+<text x="300.0" y="233" font-family="Consolas,Courier New,monospace" font-size="17" fill="#c8e1ff" font-weight="600" text-anchor="middle">API</text>
+<path d="M378.0 227h18" fill="none" stroke="#294c7d" stroke-width="1.4"/>
+<circle r="4" fill="#87bcff"><animateMotion path="M378.0 227h18" dur="3s" begin="-1s" repeatCount="indefinite"/></circle>
+<rect x="396.0" y="198" width="156.0" height="58" rx="10" fill="#0b1425" stroke="#2b4771"/>
+<rect x="396.0" y="198" width="156.0" height="58" rx="7" fill="#1b58ab" opacity="0"><animate attributeName="opacity" values="0;.52;0;0" keyTimes="0;.15;.3;1" dur="10s" begin="-4s" repeatCount="indefinite"/></rect>
+<text x="474.0" y="233" font-family="Consolas,Courier New,monospace" font-size="17" fill="#c8e1ff" font-weight="600" text-anchor="middle">CHARGING</text>
+<text x="48" y="301" font-family="Consolas,Courier New,monospace" font-size="20" fill="#b9d4f6" font-weight="400">Charging workflow demonstration</text>
+<path d="M48 326H552" fill="none" stroke="#294c7d" stroke-width="1.4"/>
+<circle r="4" fill="#87bcff"><animateMotion path="M48 326H552" dur="7s" begin="0s" repeatCount="indefinite"/></circle>
+<path d="M28 450H572" fill="none" stroke="#2b4771" stroke-width="1.4"/>
+<text x="28" y="483" font-family="Consolas,Courier New,monospace" font-size="14" fill="#94b4e0" font-weight="400">REACT  /  ASP.NET CORE</text>
+<text x="28" y="512" font-family="Consolas,Courier New,monospace" font-size="11" fill="#7f94b2" font-weight="400">PROJECT WORKFLOW / ILLUSTRATION</text>
+<defs><clipPath id="cyber-frame"><rect x="2" y="2" width="596" height="526" rx="12"/></clipPath><linearGradient id="edge-blue"><stop stop-color="#45caff"/><stop offset=".5" stop-color="#2447a1"/><stop offset="1" stop-color="#8d85ff"/></linearGradient><filter id="packet-glow"><feGaussianBlur stdDeviation="5"/></filter></defs>
+<g clip-path="url(#cyber-frame)">
+<g opacity=".13" font-family="Consolas,Courier New,monospace" font-size="11" fill="#58a8ff">
+<text x="588" y="0">01</text>
+<text x="588" y="-21">{}</text>
+<text x="588" y="-42">10</text>
+<text x="588" y="-63">//</text>
+<text x="588" y="-84">01</text>
+<animateTransform attributeName="transform" type="translate" from="0 -80" to="0 670" dur="12s" begin="0s" repeatCount="indefinite"/>
+</g>
+<g opacity=".13" font-family="Consolas,Courier New,monospace" font-size="11" fill="#58a8ff">
+<text x="569" y="0">01</text>
+<text x="569" y="-21">{}</text>
+<text x="569" y="-42">10</text>
+<text x="569" y="-63">//</text>
+<text x="569" y="-84">01</text>
+<animateTransform attributeName="transform" type="translate" from="0 -80" to="0 670" dur="13s" begin="-2s" repeatCount="indefinite"/>
+</g>
+<g opacity=".13" font-family="Consolas,Courier New,monospace" font-size="11" fill="#58a8ff">
+<text x="550" y="0">01</text>
+<text x="550" y="-21">{}</text>
+<text x="550" y="-42">10</text>
+<text x="550" y="-63">//</text>
+<text x="550" y="-84">01</text>
+<animateTransform attributeName="transform" type="translate" from="0 -80" to="0 670" dur="14s" begin="-4s" repeatCount="indefinite"/>
+</g>
+<g opacity=".13" font-family="Consolas,Courier New,monospace" font-size="11" fill="#58a8ff">
+<text x="531" y="0">01</text>
+<text x="531" y="-21">{}</text>
+<text x="531" y="-42">10</text>
+<text x="531" y="-63">//</text>
+<text x="531" y="-84">01</text>
+<animateTransform attributeName="transform" type="translate" from="0 -80" to="0 670" dur="15s" begin="-6s" repeatCount="indefinite"/>
+</g>
+<g opacity=".13" font-family="Consolas,Courier New,monospace" font-size="11" fill="#58a8ff">
+<text x="512" y="0">01</text>
+<text x="512" y="-21">{}</text>
+<text x="512" y="-42">10</text>
+<text x="512" y="-63">//</text>
+<text x="512" y="-84">01</text>
+<animateTransform attributeName="transform" type="translate" from="0 -80" to="0 670" dur="16s" begin="-8s" repeatCount="indefinite"/>
+</g>
+<g opacity=".13" font-family="Consolas,Courier New,monospace" font-size="11" fill="#58a8ff">
+<text x="493" y="0">01</text>
+<text x="493" y="-21">{}</text>
+<text x="493" y="-42">10</text>
+<text x="493" y="-63">//</text>
+<text x="493" y="-84">01</text>
+<animateTransform attributeName="transform" type="translate" from="0 -80" to="0 670" dur="17s" begin="-10s" repeatCount="indefinite"/>
+</g>
+</g>
+<path d="M2 38V12Q2 2 12 2H48" fill="none" stroke="url(#edge-blue)" stroke-width="2"/>
+<path d="M552 2H588Q598 2 598 12V38" fill="none" stroke="url(#edge-blue)" stroke-width="2"/>
+<path d="M2 492V518Q2 528 12 528H48" fill="none" stroke="url(#edge-blue)" stroke-width="2"/>
+<path d="M552 528H588Q598 528 598 518V492" fill="none" stroke="url(#edge-blue)" stroke-width="2"/>
+</svg>
