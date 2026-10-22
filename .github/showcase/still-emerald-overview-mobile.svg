@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="530" viewBox="0 0 600 530" role="img" aria-labelledby="title desc">
+<title id="title">G Energy</title>
+<desc id="desc">Original project illustration. Moving states and particles explain a workflow, not live service status or measured test results.</desc>
+<defs><linearGradient id="bg"><stop stop-color="#030705" /><stop offset="1" stop-color="#11261d" /></linearGradient><radialGradient id="aura"><stop stop-color="#28c797" stop-opacity=".22" /><stop offset="1" stop-color="#28c797" stop-opacity="0" /></radialGradient><pattern id="dots" width="18" height="18" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r=".7" fill="#73f0ca" opacity=".12" /></pattern><clipPath id="frame"><rect x="1" y="1" width="598" height="528" rx="12" /></clipPath></defs><g clip-path="url(#frame)"><rect width="600" height="530" fill="url(#bg)" /><ellipse cx="491.99999999999994" cy="238.5" rx="450" ry="400" fill="url(#aura)" /><rect width="600" height="530" fill="url(#dots)" /></g><rect x="1" y="1" width="598" height="528" rx="12" fill="none" stroke="#2d735e" />
+<text x="28" y="42" font-family="Consolas,Courier New,monospace" font-size="14" fill="#7bf0cd" font-weight="600">PROJECT / ENERGY</text>
+<text x="28" y="95" font-family="Segoe UI,Arial,sans-serif" font-size="31" fill="#f0f7f3" font-weight="700">G Energy</text>
+<text x="28" y="132" font-family="Segoe UI,Arial,sans-serif" font-size="19" fill="#afdccf" font-weight="400">Charging demonstration · React + ASP.NET Core</text>
+<rect x="28" y="166" width="544" height="250" rx="10" fill="#11261d" stroke="#2b715c" />
+<rect x="48.0" y="198" width="156.0" height="58" rx="10" fill="#10251c" stroke="#2b715c" />
+<text x="126.0" y="233" font-family="Consolas,Courier New,monospace" font-size="17" fill="#bcf0e0" font-weight="600" text-anchor="middle">REACT</text>
+<path d="M204.0 227h18" fill="none" stroke="#297d64" stroke-width="1.4" />
+<rect x="222.0" y="198" width="156.0" height="58" rx="10" fill="#10251c" stroke="#2b715c" />
+<text x="300.0" y="233" font-family="Consolas,Courier New,monospace" font-size="17" fill="#bcf0e0" font-weight="600" text-anchor="middle">API</text>
+<path d="M378.0 227h18" fill="none" stroke="#297d64" stroke-width="1.4" />
+<rect x="396.0" y="198" width="156.0" height="58" rx="10" fill="#10251c" stroke="#2b715c" />
+<text x="474.0" y="233" font-family="Consolas,Courier New,monospace" font-size="17" fill="#bcf0e0" font-weight="600" text-anchor="middle">CHARGING</text>
+<text x="48" y="301" font-family="Consolas,Courier New,monospace" font-size="20" fill="#b4f0de" font-weight="400">Charging workflow demonstration</text>
+<path d="M48 326H552" fill="none" stroke="#297d64" stroke-width="1.4" />
+<path d="M28 450H572" fill="none" stroke="#2b715c" stroke-width="1.4" />
+<text x="28" y="483" font-family="Consolas,Courier New,monospace" font-size="14" fill="#94e0c9" font-weight="400">REACT  /  ASP.NET CORE</text>
+<text x="28" y="512" font-family="Consolas,Courier New,monospace" font-size="11" fill="#7fb2a3" font-weight="400">PROJECT WORKFLOW / ILLUSTRATION</text>
+<defs><clipPath id="cyber-frame"><rect x="2" y="2" width="596" height="526" rx="12" /></clipPath><linearGradient id="edge-blue"><stop stop-color="#41f0bb" /><stop offset=".5" stop-color="#24a17c" /><stop offset="1" stop-color="#7df0b2" /></linearGradient><filter id="packet-glow"><feGaussianBlur stdDeviation="5" /></filter></defs>
+<g clip-path="url(#cyber-frame)">
+<g opacity=".25" font-family="Consolas,Courier New,monospace" font-size="11" fill="#53f0c1">
+<text x="588" y="0">01</text>
+<text x="588" y="-21">{}</text>
+<text x="588" y="-42">10</text>
+<text x="588" y="-63">//</text>
+<text x="588" y="-84">01</text>
+</g>
+<g opacity=".25" font-family="Consolas,Courier New,monospace" font-size="11" fill="#53f0c1">
+<text x="569" y="0">01</text>
+<text x="569" y="-21">{}</text>
+<text x="569" y="-42">10</text>
+<text x="569" y="-63">//</text>
+<text x="569" y="-84">01</text>
+</g>
+<g opacity=".25" font-family="Consolas,Courier New,monospace" font-size="11" fill="#53f0c1">
+<text x="550" y="0">01</text>
+<text x="550" y="-21">{}</text>
+<text x="550" y="-42">10</text>
+<text x="550" y="-63">//</text>
+<text x="550" y="-84">01</text>
+</g>
+<g opacity=".25" font-family="Consolas,Courier New,monospace" font-size="11" fill="#53f0c1">
+<text x="531" y="0">01</text>
+<text x="531" y="-21">{}</text>
+<text x="531" y="-42">10</text>
+<text x="531" y="-63">//</text>
+<text x="531" y="-84">01</text>
+</g>
+<g opacity=".25" font-family="Consolas,Courier New,monospace" font-size="11" fill="#53f0c1">
+<text x="512" y="0">01</text>
+<text x="512" y="-21">{}</text>
+<text x="512" y="-42">10</text>
+<text x="512" y="-63">//</text>
+<text x="512" y="-84">01</text>
+</g>
+<g opacity=".25" font-family="Consolas,Courier New,monospace" font-size="11" fill="#53f0c1">
+<text x="493" y="0">01</text>
+<text x="493" y="-21">{}</text>
+<text x="493" y="-42">10</text>
+<text x="493" y="-63">//</text>
+<text x="493" y="-84">01</text>
+</g>
+</g>
+<path d="M2 38V12Q2 2 12 2H48" fill="none" stroke="url(#edge-blue)" stroke-width="2" />
+<path d="M552 2H588Q598 2 598 12V38" fill="none" stroke="url(#edge-blue)" stroke-width="2" />
+<path d="M2 492V518Q2 528 12 528H48" fill="none" stroke="url(#edge-blue)" stroke-width="2" />
+<path d="M552 528H588Q598 528 598 518V492" fill="none" stroke="url(#edge-blue)" stroke-width="2" />
+<defs><filter id="object-glow"><feGaussianBlur stdDeviation="4"/></filter></defs>
+<g transform="translate(550 40)"><g>
+<rect x="-20" y="-15" width="40" height="30" rx="8" fill="#0a211a" stroke="#43c69c"/><text x="0" y="6" text-anchor="middle" font-family="Consolas,Courier New,monospace" font-size="17" fill="#e3fff1">&lt;/&gt;</text></g></g>
+</svg>
