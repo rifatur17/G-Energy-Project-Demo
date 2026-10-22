@@ -1,4 +1,5 @@
 using System.Text;
+using GEnergy.Api.Services.Email;
 using GEnergy.Api.Services.Admin;
 using GEnergy.Api.Services.Wallets;
 using GEnergy.Api.Services.Charging;
@@ -16,6 +17,12 @@ using Microsoft.Extensions.Options;
 using Microsoft.OpenApi;
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
+builder.Services.AddOptions<EmailOptions>().BindConfiguration("Email")
+    .Validate(o => o.IsValid(builder.Environment.IsDevelopment()), "Configure Email host, sender, TLS security, matching SMTP credentials and an HTTPS login URL (local HTTP is development-only).")
+    .ValidateOnStart();
+builder.Services.AddScoped<IEmailSender, SmtpEmailSender>();
+builder.Services.AddScoped<WelcomeEmailDispatcher>();
+builder.Services.AddHostedService<WelcomeEmailWorker>();
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<ChargingExceptionHandler>();
 builder.Services.AddOptions<ChargingOptions>().BindConfiguration("Charging")

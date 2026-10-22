@@ -45,6 +45,12 @@ export function Signup() {
           account is ready. Save your unique User ID before continuing.
         </p>
         <CopyCode code={created.userCode} />
+        <p role="status" aria-label="Welcome email">
+          {created.welcomeEmailStatus === "Queued"
+            ? `A welcome email with your User ID is queued for ${created.email}. Delivery may take a little time; keep a copy of your ID now.`
+            : "Welcome email is not set up yet. Your account is saved; please copy your User ID before leaving this page."}
+        </p>
+        <p className="hint">For your security, your password is never included in email.</p>
         <Link className="primary" to="/login">
           Continue to login →
         </Link>

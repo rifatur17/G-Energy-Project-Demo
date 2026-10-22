@@ -9,10 +9,12 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using GEnergy.Api.Services.Email;
+using Microsoft.Extensions.Options;
 namespace GEnergy.Api.Controllers;
 
 [ApiController, Route("api/auth")]
-public sealed class AuthController(EnergyDbContext db, IPasswordHasher<User> hasher, IUserCodeGenerator codes, TokenService tokens, CurrentUser current) : ControllerBase
+public sealed class AuthController(EnergyDbContext db, IPasswordHasher<User> hasher, IUserCodeGenerator codes, TokenService tokens, CurrentUser current, IOptions<EmailOptions> emailOptions, TimeProvider clock) : ControllerBase
 {
     private static readonly User DummyUser = new();
     private static readonly string DummyHash = new PasswordHasher<User>().HashPassword(DummyUser, Guid.NewGuid().ToString());
@@ -37,10 +39,13 @@ public sealed class AuthController(EnergyDbContext db, IPasswordHasher<User> has
         };
         user.PasswordHash = hasher.HashPassword(user, request.Password);
         db.Users.Add(user);
+        // User and welcome delivery are saved in one SQL transaction. SMTP never blocks signup.
+        var queuedAt = clock.GetUtcNow().UtcDateTime;
+        db.WelcomeEmails.Add(new WelcomeEmail { User = user, CreatedAtUtc = queuedAt, NextAttemptAtUtc = queuedAt });
         try { await db.SaveChangesAsync(ct); }
         catch (DbUpdateException e) when (e.InnerException is SqlException { Number: 2601 or 2627 })
         { return Problem(statusCode: 409, title: "Account conflicts with an existing registration."); }
-        return Created("/api/auth/me", UserResponse.From(user));
+        return Created("/api/auth/me", UserResponse.From(user) with { WelcomeEmailStatus = emailOptions.Value.Enabled ? "Queued" : "NotConfigured" });
     }
     [HttpPost("login"), AllowAnonymous, EnableRateLimiting("auth")]
     public async Task<ActionResult<LoginResponse>> Login(LoginRequest request, CancellationToken ct)

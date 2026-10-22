@@ -13,6 +13,7 @@ public sealed record LoginRequest(
     [Required, StringLength(128)] string Password);
 public sealed record UserResponse(long Id, string UserCode, string FullName, string Email, string Phone, string Role, DateTime CreatedAtUtc)
 {
+    public string? WelcomeEmailStatus { get; init; }
     public static UserResponse From(User u) => new(u.Id, u.UserCode, u.FullName, u.Email, u.Phone, u.Role, u.CreatedAtUtc);
 }
 public sealed record LoginResponse(string AccessToken, string UserCode, string Role, DateTime ExpiresAtUtc);

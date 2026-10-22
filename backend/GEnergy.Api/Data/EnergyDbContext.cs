@@ -13,6 +13,7 @@ public sealed class EnergyDbContext(DbContextOptions<EnergyDbContext> options) :
     public DbSet<ChargingSession> ChargingSessions => Set<ChargingSession>();
     public DbSet<Wallet> Wallets => Set<Wallet>();
     public DbSet<WalletTransaction> WalletTransactions => Set<WalletTransaction>();
+    public DbSet<WelcomeEmail> WelcomeEmails => Set<WelcomeEmail>();
     private void ProtectLedger()
     {
         if (ChangeTracker.Entries<WalletTransaction>().Any(e => e.State is EntityState.Modified or EntityState.Deleted))
@@ -25,6 +26,15 @@ public sealed class EnergyDbContext(DbContextOptions<EnergyDbContext> options) :
         model.ConfigureMobility();
         model.ConfigureCharging();
         model.ConfigureWallet();
+        var mail = model.Entity<WelcomeEmail>();
+        mail.HasKey(e => e.Id);
+        mail.HasIndex(e => e.UserId).IsUnique();
+        mail.HasIndex(e => new { e.SentAtUtc, e.NextAttemptAtUtc });
+        mail.HasOne(e => e.User).WithMany().HasForeignKey(e => e.UserId).OnDelete(DeleteBehavior.Restrict);
+        mail.Property(e => e.LeaseToken).IsConcurrencyToken();
+        mail.ToTable("WelcomeEmails", t => t.HasCheckConstraint("CK_WelcomeEmails_Attempts", "[Attempts] >= 0 AND [Attempts] <= 10"));
+        mail.Property(e => e.CreatedAtUtc).HasConversion(v => v, v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
+        mail.Property(e => e.NextAttemptAtUtc).HasConversion(v => v, v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
         model.HasSequence<long>("UserCodeNumbers").StartsAt(1001);
         var u = model.Entity<User>();
         u.ToTable("Users", t => t.HasCheckConstraint("CK_Users_Role", "[Role] IN ('Admin','CarOwner','CarDriver')"));

@@ -69,6 +69,8 @@ describe("authentication screens", () => {
     );
     await user.click(screen.getByRole("button", { name: /Create account/ }));
     expect(await screen.findByText("GE-DRV-001002")).toBeVisible();
+    expect(screen.getByRole("status", {name: "Welcome email"})).toHaveTextContent("Welcome email is not set up yet");
+    expect(screen.getByText(/your password is never included in email/)).toBeVisible();
     expect(api.register).toHaveBeenCalledWith(
       expect.objectContaining({
         role: "CarDriver",
@@ -80,6 +82,19 @@ describe("authentication screens", () => {
     expect(
       screen.getByRole("link", { name: /Continue to login/ }),
     ).toHaveAttribute("href", "/login");
+  });
+  it("shows a queued welcome email without claiming it was delivered", async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.register).mockResolvedValue({...owner, welcomeEmailStatus: "Queued"});
+    show("/signup");
+    await user.type(screen.getByLabelText("Full name"), owner.fullName);
+    await user.type(screen.getByLabelText("Email address"), owner.email);
+    await user.type(screen.getByLabelText("Phone number"), owner.phone);
+    await user.type(screen.getByLabelText("Password"), "Test-only-long-passphrase");
+    await user.click(screen.getByRole("button", {name: /Create account/}));
+    expect(await screen.findByRole("status", {name: "Welcome email"})).toHaveTextContent(`queued for ${owner.email}`);
+    expect(screen.getByText(owner.userCode)).toBeVisible();
+    expect(screen.queryByText(/email has been sent/i)).not.toBeInTheDocument();
   });
   it("shows registration errors and lets the user retry", async () => {
     const user = userEvent.setup();

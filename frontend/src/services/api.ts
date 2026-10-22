@@ -7,6 +7,7 @@ export interface User {
   phone: string;
   role: Role;
   createdAtUtc: string;
+  welcomeEmailStatus?: "Queued" | "NotConfigured" | null;
 }
 export interface Registration {
   fullName: string;

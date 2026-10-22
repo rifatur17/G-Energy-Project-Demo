@@ -8,6 +8,12 @@ React + TypeScript + Vite frontend, ASP.NET Core 10 API, EF Core 10 and SQL Serv
 - Node.js 22.12+ or a newer supported version; npm. Commit and use package-lock.json with `npm ci`.
 - A reachable SQL Server instance or SQL Server Express LocalDB. The application does not substitute another database when SQL Server is unavailable.
 
+## Start on this Windows computer without typing commands
+
+Double-click **Start G Energy.vbs** in this project folder. It builds/restores the existing backend if needed, restores frontend dependencies only when missing, starts both services in hidden windows and opens http://localhost:5173/login when ready. The first launch can take longer while dependencies restore. Keep SQL Server (MSSQLSERVER) running. Existing local user secrets, environment files and GEnergyDb are reused; the launcher never seeds, migrates or resets the database.
+
+Double-click **Stop G Energy.vbs** when finished. It stops only this project's recorded and verified processes. SQL Server keeps running. Starting twice reuses those processes. If its saved process information is missing or stale, Start can recover this exact project's running services by checking executable, full project entry-point path and Windows user identity before recording them again. If a different process occupies port 5080 or 5173, the launcher reports it and leaves it alone; close that process's original terminal before trying again. Errors appear in a dialog, with logs under `%LOCALAPPDATA%\GEnergyLauncher`. The launchers use Windows Script Host and Windows PowerShell with process-only RemoteSigned policy; no system policy is changed. If these are disabled by your computer's policy, use the manual terminal instructions below.
+
 ## Backend setup (PowerShell, repository root)
 
 ```powershell
@@ -74,6 +80,10 @@ Read [Member 2 API / shared integration contract](docs/member2-api.md) and [Memb
 ## Admin operations
 
 Provision an Admin with the Development-only bootstrap above. The Admin dashboard reads real API counts; Admin tools manage station/charger configuration and provide read-only booking, session, transaction, wallet and coded user overviews. Changes require review and reject live reservations/charging or stale versions. Owners and Drivers cannot access Admin routes or APIs. See [Member 5 setup/API and QA guide](docs/member5-admin-qa.md), [actual release verification](docs/member5-verification.md) and [presentation login/walkthrough](docs/presentation-demo.md).
+
+## Signup welcome email
+
+New accounts retain a welcome email delivery job in SQL Server. The message contains the generated User ID, login link, welcome and thanks; passwords are never emailed. SMTP is disabled until configured later. Signup clearly shows that email is not configured and keeps the ID copyable. See [welcome email setup, migration and retry behavior](docs/welcome-email.md). Existing accounts are not emailed automatically.
 
 ## Verify
 

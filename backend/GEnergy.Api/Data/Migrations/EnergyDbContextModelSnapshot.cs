@@ -603,6 +603,49 @@ namespace GEnergy.Api.Data.Migrations
                         });
                 });
 
+            modelBuilder.Entity("GEnergy.Api.Entities.WelcomeEmail", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<int>("Attempts")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("LeaseToken")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("LeaseUntilUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("NextAttemptAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("SentAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long>("UserId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId")
+                        .IsUnique();
+
+                    b.HasIndex("SentAtUtc", "NextAttemptAtUtc");
+
+                    b.ToTable("WelcomeEmails", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_WelcomeEmails_Attempts", "[Attempts] >= 0 AND [Attempts] <= 10");
+                        });
+                });
+
             modelBuilder.Entity("GEnergy.Api.Entities.Booking", b =>
                 {
                     b.HasOne("GEnergy.Api.Entities.User", "BookedBy")
@@ -749,6 +792,17 @@ namespace GEnergy.Api.Data.Migrations
                     b.Navigation("OriginalTransaction");
 
                     b.Navigation("Wallet");
+                });
+
+            modelBuilder.Entity("GEnergy.Api.Entities.WelcomeEmail", b =>
+                {
+                    b.HasOne("GEnergy.Api.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("GEnergy.Api.Entities.Station", b =>
