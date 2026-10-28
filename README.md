@@ -25,6 +25,8 @@ Double-click **Stop G Energy.vbs** when finished. It stops only this project's r
 
 ## Backend setup (PowerShell, repository root)
 
+Launcher troubleshooting: repeated Start/Stop clicks during an operation are ignored without stacking error windows. Notices release the operation lock before waiting for OK. Dependency/build commands time out after two minutes instead of holding the lock indefinitely. Once dependencies are installed, backend builds skip restore so an unavailable internet connection does not block normal startup. After changing backend package references, run `dotnet restore` once before using the launcher.
+
 ```powershell
 dotnet tool restore
 dotnet restore

@@ -20,6 +20,11 @@ $taskMutex = New-Object Threading.Mutex($false, "Local\GEnergyLauncher_$taskHash
 $taskHasLock = $false
 
 function Show-Notice([string]$Message, [bool]$Failure = $false) {
+    # A modal dialog must never hold the Start/Stop lock while waiting for OK.
+    if ($script:taskHasLock) {
+        $taskMutex.ReleaseMutex()
+        $script:taskHasLock = $false
+    }
     if (!$Quiet) {
         $taskDialog = New-Object -ComObject WScript.Shell
         $taskIcon = if ($Failure) { 16 } else { 64 }
@@ -90,7 +95,10 @@ function Run-Hidden([string]$Executable, [string]$Arguments, [string]$Directory,
         [void]$taskProcess.Start()
         $taskOutput = $taskProcess.StandardOutput.ReadToEndAsync()
         $taskErrors = $taskProcess.StandardError.ReadToEndAsync()
-        $taskProcess.WaitForExit()
+        if (!$taskProcess.WaitForExit(120000)) {
+            if (!$taskProcess.HasExited) { $taskProcess.Kill(); $taskProcess.WaitForExit() }
+            throw "$Name took more than two minutes. Check your internet connection if dependencies need restoring. See logs in $taskRuntime"
+        }
         [IO.File]::WriteAllText((Join-Path $taskRuntime "$Name.out.log"), $taskOutput.Result)
         [IO.File]::WriteAllText((Join-Path $taskRuntime "$Name.err.log"), $taskErrors.Result)
         if ($taskProcess.ExitCode -ne 0) { throw "$Name failed (exit $($taskProcess.ExitCode)). See logs in $taskRuntime" }
@@ -119,7 +127,8 @@ function Wait-Ready($Entry, [string]$Url) {
 
 try {
     try { $taskHasLock = $taskMutex.WaitOne(0) } catch [Threading.AbandonedMutexException] { $taskHasLock = $true }
-    if (!$taskHasLock) { throw 'G Energy is already starting or stopping. Please wait for that operation to finish.' }
+    # Double-clicks during startup are harmless; do not stack modal error dialogs.
+    if (!$taskHasLock) { Write-Output 'G Energy is already starting or stopping; duplicate request ignored.'; return }
     if (Test-Path -LiteralPath $taskStatePath) {
         # Windows PowerShell 5.1 emits a JSON array as one pipeline object.
         try {
@@ -159,7 +168,10 @@ try {
         Run-Hidden $taskNode ('"{0}" ci' -f $taskNpm) $taskWebRoot 'dependencies'
     }
     if (!$taskApiEntry) {
-        Run-Hidden $taskDotnet ('build "{0}" --configuration Release' -f (Join-Path $taskApiRoot 'GEnergy.Api.csproj')) $taskRoot 'build'
+        $taskBuildArguments = 'build "{0}" --configuration Release' -f (Join-Path $taskApiRoot 'GEnergy.Api.csproj')
+        # Installed projects can launch offline; restore only on first setup.
+        if (Test-Path -LiteralPath (Join-Path $taskApiRoot 'obj\project.assets.json')) { $taskBuildArguments += ' --no-restore' }
+        Run-Hidden $taskDotnet $taskBuildArguments $taskRoot 'build'
         $taskPreviousEnvironment = $env:ASPNETCORE_ENVIRONMENT
         try {
             $env:ASPNETCORE_ENVIRONMENT = 'Development'
