@@ -56,11 +56,12 @@ function Find-Tool([string]$Name, [string[]]$Fallbacks) {
     throw "$Name was not found. See README.md for prerequisites."
 }
 function Assert-FreePort([int]$Port) {
-    if (Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue) {
-        throw "Port $Port is already used by a process this launcher did not start. Close its original terminal or app, then double-click Start G Energy again. No process was stopped."
+    $taskListeners = @(Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique)
+    if ($taskListeners.Count) {
+        throw "Port $Port is already used by process ID $($taskListeners -join ', '). The launcher could not verify it belongs to this G Energy project. No process was stopped."
     }
 }
-function Recover-ProjectProcess([string]$Name, [int]$Port, [string]$Executable, [string]$Marker) {
+function Recover-ProjectProcess([string]$Name, [int]$Port, [string]$Executable, [string]$Marker, [string]$BuildRoot) {
     # A missing/stale state file must not make an already running copy of this
     # exact project look like an unrelated port conflict. Never adopt by port alone.
     $taskListenerIds = @(Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique)
@@ -69,7 +70,18 @@ function Recover-ProjectProcess([string]$Name, [int]$Port, [string]$Executable, 
         $taskDetails = Get-CimInstance Win32_Process -Filter "ProcessId=$($taskListenerIds[0])"
         if ($taskDetails.ExecutablePath -ine $Executable) { return $null }
         $taskMarkerPattern = '(?i)(?:^|\s)"?' + [regex]::Escape($Marker) + '"?(?=\s|$)'
-        if ($taskDetails.CommandLine -notmatch $taskMarkerPattern) { return $null }
+        if ($taskDetails.CommandLine -notmatch $taskMarkerPattern) {
+            if (!$BuildRoot) { return $null }
+            # A still-running API may belong to an earlier isolated build, even if
+            # api-build.json was overwritten or is missing. Match its actual DLL
+            # argument and this checkout's explicit content root, not just its port.
+            $taskBuildPattern = '(?i)(?:^|\s)"?(' + [regex]::Escape($BuildRoot) + '\\[a-f0-9]{32}\\GEnergy\.Api\.dll)"?(?=\s|$)'
+            $taskBuildMatch = [regex]::Match([string]$taskDetails.CommandLine, $taskBuildPattern)
+            $taskContentRoot = Join-Path $taskRoot 'backend\GEnergy.Api'
+            $taskRootPattern = '(?i)(?:^|\s)--contentRoot\s+"?' + [regex]::Escape($taskContentRoot) + '"?(?=\s|$)'
+            if (!$taskBuildMatch.Success -or $taskDetails.CommandLine -notmatch $taskRootPattern) { return $null }
+            $Marker = $taskBuildMatch.Groups[1].Value
+        }
         $taskOwner = Invoke-CimMethod -InputObject $taskDetails -MethodName GetOwnerSid
         if ($taskOwner.ReturnValue -ne 0 -or $taskOwner.Sid -ne [Security.Principal.WindowsIdentity]::GetCurrent().User.Value) { return $null }
         $taskProcess = Get-Process -Id $taskListenerIds[0]
@@ -200,8 +212,7 @@ try {
     $taskVite = Join-Path $taskWebRoot 'node_modules\vite\bin\vite.js'
     $taskApiEntry = @($taskEntries | Where-Object Name -eq 'api') | Select-Object -First 1
     $taskWebEntry = @($taskEntries | Where-Object Name -eq 'web') | Select-Object -First 1
-    if (!$taskApiEntry) { $taskApiEntry = Recover-ProjectProcess 'api' 5080 $taskDotnet $taskDll }
-    if (!$taskApiEntry -and $taskDll -ne $taskLegacyDll) { $taskApiEntry = Recover-ProjectProcess 'api' 5080 $taskDotnet $taskLegacyDll }
+    if (!$taskApiEntry) { $taskApiEntry = Recover-ProjectProcess 'api' 5080 $taskDotnet $taskLegacyDll $taskBuildRoot }
     if (!$taskWebEntry) { $taskWebEntry = Recover-ProjectProcess 'web' 5173 $taskNode $taskVite }
     if (!$taskApiEntry) { Assert-FreePort 5080 }
     if (!$taskWebEntry) { Assert-FreePort 5173 }
