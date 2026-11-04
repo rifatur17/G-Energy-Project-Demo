@@ -261,7 +261,13 @@ export function Bookings() {
               </p>
               <p className="hint">{b.bookingCode}</p>
               {b.status === "Reserved" && (
-                <ReservationDirections key={b.stationId} stationId={b.stationId} loadStation={mobility.station} />
+                <ReservationDirections
+                  key={b.stationId}
+                  stationId={b.stationId}
+                  loadStation={mobility.station}
+                  expiresAtUtc={b.expiresAtUtc}
+                  serverTimeUtc={b.serverTimeUtc}
+                />
               )}
               {b.status === "Reserved" ? (
                 <div className="action-row">

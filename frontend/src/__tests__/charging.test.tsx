@@ -20,6 +20,22 @@ import {
   type Session,
 } from "../features/charging/api";
 import { useMobilityApi } from "../features/mobility/api";
+import { drivingRoute } from "../features/discovery/drivingRoute";
+vi.mock("../features/discovery/drivingRoute", async (original) => ({
+  ...(await original<typeof import("../features/discovery/drivingRoute")>()),
+  drivingRoute: vi.fn(),
+}));
+vi.mock("../features/discovery/LiveRouteMap", () => ({
+  LiveRouteMap: ({
+    origin,
+  }: {
+    origin: { latitude: number; longitude: number };
+  }) => (
+    <div role="region" aria-label="Live driving route to reserved station">
+      {origin.latitude}, {origin.longitude}
+    </div>
+  ),
+}));
 vi.mock("../features/charging/api", async (original) => ({
   ...(await original<typeof import("../features/charging/api")>()),
   useChargingApi: vi.fn(),
@@ -151,7 +167,9 @@ it("creates a real API reservation with a stable idempotency key and displays co
     screen.getByRole("button", { name: "Reserve for 3 minutes" }),
   );
   expect(await screen.findByRole("timer")).toHaveTextContent("3:00 remaining");
-  expect(await screen.findByRole("link", { name: /Directions in Google Maps/ })).toHaveAttribute("href", "https://www.google.com/maps/dir/?api=1&destination=23.8103%2C90.4125&travelmode=driving");
+  expect(
+    await screen.findByRole("button", { name: "Start live directions" }),
+  ).toBeEnabled();
   expect(calls.availability).toHaveBeenCalledWith(3);
   expect(calls.reserve).toHaveBeenCalledWith(
     { vehicleId: 1, stationId: 2, chargerId: 3 },
@@ -165,13 +183,100 @@ it("loads directions for a saved reservation and retries unavailable station det
   page();
   expect(await screen.findByText(/directions are unavailable/)).toBeVisible();
   expect(screen.getByRole("button", { name: "Start charging" })).toBeEnabled();
-  await userEvent.click(screen.getByRole("button", { name: "Retry directions" }));
-  const link = await screen.findByRole("link", { name: /Directions in Google Maps/ });
-  const params = new URL(link.getAttribute("href")!).searchParams;
-  expect(params.get("destination")).toBe("23.8103,90.4125");
-  expect(params.has("origin")).toBe(false);
+  await userEvent.click(
+    screen.getByRole("button", { name: "Retry directions" }),
+  );
+  expect(
+    await screen.findByRole("button", { name: "Start live directions" }),
+  ).toBeEnabled();
   expect(mobility.station).toHaveBeenCalledWith(2);
-  expect(screen.getByText(/sample pin, not a verified charging station/)).toBeVisible();
+  expect(
+    screen.getByText(/sample pin, not a verified charging station/),
+  ).toBeVisible();
+});
+it("tracks only after opt-in, updates the dot and route details, and stops on cancellation", async () => {
+  calls.bookings.mockResolvedValue([booking]);
+  let fix: PositionCallback;
+  const watchPosition = vi.fn((callback: PositionCallback) => {
+    fix = callback;
+    return 12;
+  });
+  const clearWatch = vi.fn();
+  const previous = Object.getOwnPropertyDescriptor(navigator, "geolocation");
+  Object.defineProperty(navigator, "geolocation", {
+    configurable: true,
+    value: { watchPosition, clearWatch },
+  });
+  vi.mocked(drivingRoute).mockResolvedValue({
+    distance: 9400,
+    duration: 744,
+    points: [
+      [23.8, 90.4],
+      [23.81, 90.41],
+    ],
+    roads: ["Test Road"],
+  });
+  try {
+    page();
+    const start = await screen.findByRole("button", {
+      name: "Start live directions",
+    });
+    expect(watchPosition).not.toHaveBeenCalled();
+    await userEvent.click(start);
+    expect(watchPosition).toHaveBeenCalledTimes(1);
+    act(() =>
+      fix({
+        coords: { latitude: 23.8, longitude: 90.4 },
+      } as GeolocationPosition),
+    );
+    expect(await screen.findByText(/About 13 min · 9.4 km/)).toBeVisible();
+    expect(screen.getByText("Test Road")).toBeInTheDocument();
+    expect(drivingRoute).toHaveBeenCalledWith(
+      { latitude: 23.8, longitude: 90.4 },
+      expect.objectContaining({ id: 2 }),
+      expect.any(AbortSignal),
+    );
+    act(() =>
+      fix({
+        coords: { latitude: 23.801, longitude: 90.401 },
+      } as GeolocationPosition),
+    );
+    expect(
+      screen.getByRole("region", { name: /Live driving route/ }),
+    ).toHaveTextContent("23.801, 90.401");
+    expect(drivingRoute).toHaveBeenCalledTimes(1);
+    const time = vi.spyOn(Date, "now").mockReturnValue(Date.now() + 16000);
+    try {
+      vi.mocked(drivingRoute).mockResolvedValueOnce({
+        distance: 3200,
+        duration: 360,
+        points: [
+          [23.805, 90.405],
+          [23.81, 90.41],
+        ],
+        roads: [],
+      });
+      act(() =>
+        fix({
+          coords: { latitude: 23.805, longitude: 90.405 },
+        } as GeolocationPosition),
+      );
+      expect(await screen.findByText(/About 6 min · 3.2 km/)).toBeVisible();
+      expect(drivingRoute).toHaveBeenCalledTimes(2);
+    } finally {
+      time.mockRestore();
+    }
+    await userEvent.click(
+      screen.getByRole("button", { name: "Cancel reservation" }),
+    );
+    expect(clearWatch).toHaveBeenCalledWith(12);
+    expect(
+      screen.queryByRole("region", { name: /Live driving route/ }),
+    ).not.toBeInTheDocument();
+  } finally {
+    if (previous) Object.defineProperty(navigator, "geolocation", previous);
+    else Reflect.deleteProperty(navigator, "geolocation");
+  }
 });
 it("countdown uses server time rather than the browser wall clock and clamps at zero", () => {
   expect(remainingSeconds(booking.expiresAtUtc, booking.serverTimeUtc)).toBe(

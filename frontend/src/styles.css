@@ -686,6 +686,12 @@ code {
 .booking-card .hint {
   overflow-wrap: anywhere;
 }
+.reservation-directions .live-route-map {
+  height: clamp(240px, 45vh, 380px);
+  margin: 0.75rem 0;
+  border-radius: 0.75rem;
+  overflow: hidden;
+}
 .action-row {
   display: flex;
   flex-wrap: wrap;
