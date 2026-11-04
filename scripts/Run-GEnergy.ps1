@@ -115,10 +115,16 @@ function Start-ServiceProcess([string]$Executable, [string]$Arguments, [string]$
 function Wait-Ready($Entry, [string]$Url) {
     $taskDeadline = [DateTime]::UtcNow.AddSeconds(45)
     do {
-        if (!(Get-OwnedProcess $Entry)) { throw "$($Entry.Name) exited. See logs in $taskRuntime" }
+        # CIM identity checks can fail briefly during process startup. Check the PID
+        # and creation time for liveness; still require full identity before reuse/stop.
+        $taskProcess = Get-Process -Id $Entry.ProcessId -ErrorAction SilentlyContinue
+        if (!$taskProcess -or $taskProcess.HasExited) {
+            throw "$($Entry.Name) exited during startup. Check $($Entry.Name).err.log and $($Entry.Name).out.log for the cause."
+        }
+        if ($taskProcess.StartTime.ToUniversalTime().Ticks -ne [long]$Entry.StartTicks) { throw "$($Entry.Name) process changed during startup." }
         try {
             $taskResponse = Invoke-WebRequest $Url -UseBasicParsing -TimeoutSec 2
-            if ($taskResponse.StatusCode -eq 200) { return }
+            if ($taskResponse.StatusCode -eq 200 -and (Get-OwnedProcess $Entry)) { return }
         } catch { }
         Start-Sleep -Milliseconds 400
     } while ([DateTime]::UtcNow -lt $taskDeadline)
@@ -172,11 +178,10 @@ try {
         # Installed projects can launch offline; restore only on first setup.
         if (Test-Path -LiteralPath (Join-Path $taskApiRoot 'obj\project.assets.json')) { $taskBuildArguments += ' --no-restore' }
         Run-Hidden $taskDotnet $taskBuildArguments $taskRoot 'build'
-        $taskPreviousEnvironment = $env:ASPNETCORE_ENVIRONMENT
-        try {
-            $env:ASPNETCORE_ENVIRONMENT = 'Development'
-            $taskApiEntry = Start-ServiceProcess $taskDotnet ('"{0}" --urls http://localhost:5080' -f $taskDll) $taskApiRoot 'api' $taskDll
-        } finally { $env:ASPNETCORE_ENVIRONMENT = $taskPreviousEnvironment }
+        # Explicit host arguments take precedence over inherited environment settings.
+        # Development loads this user's existing .NET user secrets (JWT and SQL).
+        $taskApiArguments = '"{0}" --environment Development --contentRoot "{1}" --urls http://localhost:5080' -f $taskDll, $taskApiRoot
+        $taskApiEntry = Start-ServiceProcess $taskDotnet $taskApiArguments $taskApiRoot 'api' $taskDll
     }
     Wait-Ready $taskApiEntry 'http://localhost:5080/swagger/v1/swagger.json'
     if (!$taskWebEntry) {
