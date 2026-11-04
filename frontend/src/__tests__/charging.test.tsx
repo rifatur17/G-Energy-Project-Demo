@@ -119,6 +119,8 @@ beforeEach(() => {
       id: 2,
       name: "Sample Dhaka",
       address: "Demo only",
+      latitude: 23.8103,
+      longitude: 90.4125,
       isDemo: true,
       chargers: [
         {
@@ -149,11 +151,27 @@ it("creates a real API reservation with a stable idempotency key and displays co
     screen.getByRole("button", { name: "Reserve for 3 minutes" }),
   );
   expect(await screen.findByRole("timer")).toHaveTextContent("3:00 remaining");
+  expect(await screen.findByRole("link", { name: /Directions in Google Maps/ })).toHaveAttribute("href", "https://www.google.com/maps/dir/?api=1&destination=23.8103%2C90.4125&travelmode=driving");
   expect(calls.availability).toHaveBeenCalledWith(3);
   expect(calls.reserve).toHaveBeenCalledWith(
     { vehicleId: 1, stationId: 2, chargerId: 3 },
     expect.any(String),
   );
+});
+it("loads directions for a saved reservation and retries unavailable station details", async () => {
+  calls.bookings.mockResolvedValue([booking]);
+  const mobility = vi.mocked(useMobilityApi).getMockImplementation()!();
+  vi.mocked(mobility.station).mockRejectedValueOnce(new Error("Offline"));
+  page();
+  expect(await screen.findByText(/directions are unavailable/)).toBeVisible();
+  expect(screen.getByRole("button", { name: "Start charging" })).toBeEnabled();
+  await userEvent.click(screen.getByRole("button", { name: "Retry directions" }));
+  const link = await screen.findByRole("link", { name: /Directions in Google Maps/ });
+  const params = new URL(link.getAttribute("href")!).searchParams;
+  expect(params.get("destination")).toBe("23.8103,90.4125");
+  expect(params.has("origin")).toBe(false);
+  expect(mobility.station).toHaveBeenCalledWith(2);
+  expect(screen.getByText(/sample pin, not a verified charging station/)).toBeVisible();
 });
 it("countdown uses server time rather than the browser wall clock and clamps at zero", () => {
   expect(remainingSeconds(booking.expiresAtUtc, booking.serverTimeUtc)).toBe(

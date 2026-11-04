@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { ReservationDirections } from "../features/discovery/ReservationDirections";
 import {
   useChargingApi,
   type Booking,
@@ -259,6 +260,9 @@ export function Bookings() {
                 {b.chargerCode} · Vehicle #{b.vehicleId}
               </p>
               <p className="hint">{b.bookingCode}</p>
+              {b.status === "Reserved" && (
+                <ReservationDirections key={b.stationId} stationId={b.stationId} loadStation={mobility.station} />
+              )}
               {b.status === "Reserved" ? (
                 <div className="action-row">
                   <button
