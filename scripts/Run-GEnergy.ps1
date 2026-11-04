@@ -101,8 +101,33 @@ function Run-Hidden([string]$Executable, [string]$Arguments, [string]$Directory,
         }
         [IO.File]::WriteAllText((Join-Path $taskRuntime "$Name.out.log"), $taskOutput.Result)
         [IO.File]::WriteAllText((Join-Path $taskRuntime "$Name.err.log"), $taskErrors.Result)
-        if ($taskProcess.ExitCode -ne 0) { throw "$Name failed (exit $($taskProcess.ExitCode)). See logs in $taskRuntime" }
+        if ($taskProcess.ExitCode -ne 0) {
+            $taskCode = [regex]::Match(($taskOutput.Result + "`n" + $taskErrors.Result), '\berror\s+([A-Z]+\d+)\b')
+            $taskDetail = if ($taskCode.Success) { "; $($taskCode.Groups[1].Value)" } else { '' }
+            throw "$Name failed (exit $($taskProcess.ExitCode)$taskDetail). See $Name.out.log and $Name.err.log."
+        }
     } finally { $taskProcess.Dispose() }
+}
+function Get-ApiBuildSignature([string]$ApiRoot, [string]$Dll) {
+    $taskOutputFiles = @($Dll, ($Dll -replace '\.dll$', '.deps.json'), ($Dll -replace '\.dll$', '.runtimeconfig.json'))
+    foreach ($taskFile in $taskOutputFiles) { if (!(Test-Path -LiteralPath $taskFile -PathType Leaf)) { return $null } }
+
+    # SDK-style project inputs. Do not include generated output or local secrets.
+    $taskPending = New-Object 'System.Collections.Generic.Stack[string]'
+    $taskPending.Push($ApiRoot)
+    $taskInputs = @(while ($taskPending.Count) {
+        foreach ($taskItem in Get-ChildItem -LiteralPath $taskPending.Pop()) {
+            if ($taskItem.PSIsContainer) {
+                if ($taskItem.Name -notin 'bin', 'obj' -and !$taskItem.Attributes.HasFlag([IO.FileAttributes]::ReparsePoint)) { $taskPending.Push($taskItem.FullName) }
+            } elseif ($taskItem.Extension -in '.cs', '.csproj', '.props', '.targets', '.resx') { $taskItem }
+        }
+    })
+    $taskInputs += @(Get-Item -LiteralPath @((Join-Path $taskRoot 'global.json'), (Join-Path $ApiRoot 'obj\project.assets.json')) -ErrorAction SilentlyContinue)
+    $taskInputs += @(Get-Item -LiteralPath $taskOutputFiles)
+    $taskLines = $taskInputs | Sort-Object FullName | ForEach-Object { '{0}|{1}|{2}' -f $_.FullName, $_.Length, $_.LastWriteTimeUtc.Ticks }
+    $taskHasher = [Security.Cryptography.SHA256]::Create()
+    try { return [Convert]::ToBase64String($taskHasher.ComputeHash([Text.Encoding]::UTF8.GetBytes(($taskLines -join "`n")))) }
+    finally { $taskHasher.Dispose() }
 }
 function Start-ServiceProcess([string]$Executable, [string]$Arguments, [string]$Directory, [string]$Name, [string]$Marker) {
     $taskProcess = Start-Process -FilePath $Executable -ArgumentList $Arguments -WorkingDirectory $Directory -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $taskRuntime "$Name.out.log") -RedirectStandardError (Join-Path $taskRuntime "$Name.err.log")
@@ -156,7 +181,9 @@ try {
 
     $taskSqlService = Get-Service MSSQLSERVER -ErrorAction SilentlyContinue
     if (!$taskSqlService -or $taskSqlService.Status -ne 'Running') { throw 'SQL Server (MSSQLSERVER) is not running. Open Windows Services, start it, then try again. The database will not be reset.' }
-    $taskDotnet = Find-Tool 'dotnet.exe' @((Join-Path (Split-Path $taskRoot -Parent) 'runtimes\projectflow-dotnet\dotnet.exe'), "$env:ProgramFiles\dotnet\dotnet.exe")
+    # Explorer and terminals can have different PATHs, including an x86 .NET host.
+    $taskNativeDotnet = if ($env:ProgramW6432) { Join-Path $env:ProgramW6432 'dotnet\dotnet.exe' }
+    $taskDotnet = if ($taskNativeDotnet -and (Test-Path -LiteralPath $taskNativeDotnet)) { $taskNativeDotnet } else { Find-Tool 'dotnet.exe' @((Join-Path (Split-Path $taskRoot -Parent) 'runtimes\projectflow-dotnet\dotnet.exe'), "$env:ProgramFiles\dotnet\dotnet.exe") }
     $taskNode = Find-Tool 'node.exe' @("$env:ProgramFiles\nodejs\node.exe")
     $taskApiRoot = Join-Path $taskRoot 'backend\GEnergy.Api'
     $taskWebRoot = Join-Path $taskRoot 'frontend'
@@ -174,10 +201,15 @@ try {
         Run-Hidden $taskNode ('"{0}" ci' -f $taskNpm) $taskWebRoot 'dependencies'
     }
     if (!$taskApiEntry) {
-        $taskBuildArguments = 'build "{0}" --configuration Release' -f (Join-Path $taskApiRoot 'GEnergy.Api.csproj')
-        # Installed projects can launch offline; restore only on first setup.
-        if (Test-Path -LiteralPath (Join-Path $taskApiRoot 'obj\project.assets.json')) { $taskBuildArguments += ' --no-restore' }
-        Run-Hidden $taskDotnet $taskBuildArguments $taskRoot 'build'
+        $taskBuildStamp = Join-Path $taskRuntime 'api-build-signature.txt'
+        $taskCurrentSignature = Get-ApiBuildSignature $taskApiRoot $taskDll
+        $taskSavedSignature = if (Test-Path -LiteralPath $taskBuildStamp) { (Get-Content -LiteralPath $taskBuildStamp -Raw).Trim() }
+        if (!$taskCurrentSignature -or $taskCurrentSignature -ne $taskSavedSignature) {
+            $taskBuildArguments = 'build "{0}" --configuration Release -p:UseAppHost=false' -f (Join-Path $taskApiRoot 'GEnergy.Api.csproj')
+            if (Test-Path -LiteralPath (Join-Path $taskApiRoot 'obj\project.assets.json')) { $taskBuildArguments += ' --no-restore' }
+            Run-Hidden $taskDotnet $taskBuildArguments $taskRoot 'build'
+            Get-ApiBuildSignature $taskApiRoot $taskDll | Set-Content -LiteralPath $taskBuildStamp -Encoding ASCII
+        } else { Write-Output 'Using the existing backend build.' }
         # Explicit host arguments take precedence over inherited environment settings.
         # Development loads this user's existing .NET user secrets (JWT and SQL).
         $taskApiArguments = '"{0}" --environment Development --contentRoot "{1}" --urls http://localhost:5080' -f $taskDll, $taskApiRoot
