@@ -187,11 +187,21 @@ try {
     $taskNode = Find-Tool 'node.exe' @("$env:ProgramFiles\nodejs\node.exe")
     $taskApiRoot = Join-Path $taskRoot 'backend\GEnergy.Api'
     $taskWebRoot = Join-Path $taskRoot 'frontend'
-    $taskDll = Join-Path $taskApiRoot 'bin\Release\net10.0\GEnergy.Api.dll'
+    $taskLegacyDll = Join-Path $taskApiRoot 'bin\Release\net10.0\GEnergy.Api.dll'
+    $taskBuildRoot = Join-Path $taskRuntime 'api-builds'
+    $taskBuildStamp = Join-Path $taskRuntime 'api-build.json'
+    $taskCachedBuild = $null
+    if (Test-Path -LiteralPath $taskBuildStamp) {
+        try { $taskCachedBuild = Get-Content -LiteralPath $taskBuildStamp -Raw | ConvertFrom-Json } catch { }
+    }
+    $taskDll = if ($taskCachedBuild.Id -match '^[a-f0-9]{32}$') {
+        Join-Path (Join-Path $taskBuildRoot $taskCachedBuild.Id) 'GEnergy.Api.dll'
+    } else { $taskLegacyDll }
     $taskVite = Join-Path $taskWebRoot 'node_modules\vite\bin\vite.js'
     $taskApiEntry = @($taskEntries | Where-Object Name -eq 'api') | Select-Object -First 1
     $taskWebEntry = @($taskEntries | Where-Object Name -eq 'web') | Select-Object -First 1
     if (!$taskApiEntry) { $taskApiEntry = Recover-ProjectProcess 'api' 5080 $taskDotnet $taskDll }
+    if (!$taskApiEntry -and $taskDll -ne $taskLegacyDll) { $taskApiEntry = Recover-ProjectProcess 'api' 5080 $taskDotnet $taskLegacyDll }
     if (!$taskWebEntry) { $taskWebEntry = Recover-ProjectProcess 'web' 5173 $taskNode $taskVite }
     if (!$taskApiEntry) { Assert-FreePort 5080 }
     if (!$taskWebEntry) { Assert-FreePort 5173 }
@@ -201,14 +211,20 @@ try {
         Run-Hidden $taskNode ('"{0}" ci' -f $taskNpm) $taskWebRoot 'dependencies'
     }
     if (!$taskApiEntry) {
-        $taskBuildStamp = Join-Path $taskRuntime 'api-build-signature.txt'
         $taskCurrentSignature = Get-ApiBuildSignature $taskApiRoot $taskDll
-        $taskSavedSignature = if (Test-Path -LiteralPath $taskBuildStamp) { (Get-Content -LiteralPath $taskBuildStamp -Raw).Trim() }
+        $taskSavedSignature = $taskCachedBuild.Signature
         if (!$taskCurrentSignature -or $taskCurrentSignature -ne $taskSavedSignature) {
-            $taskBuildArguments = 'build "{0}" --configuration Release -p:UseAppHost=false' -f (Join-Path $taskApiRoot 'GEnergy.Api.csproj')
+            # An old host or an IDE may still hold a DLL open in bin/Release.
+            # Build into a fresh output directory; never overwrite an active build.
+            $taskBuildId = [guid]::NewGuid().ToString('N')
+            $taskBuildDirectory = Join-Path $taskBuildRoot $taskBuildId
+            $taskDll = Join-Path $taskBuildDirectory 'GEnergy.Api.dll'
+            $taskBuildArguments = 'build "{0}" --configuration Release -p:UseAppHost=false --output "{1}"' -f (Join-Path $taskApiRoot 'GEnergy.Api.csproj'), $taskBuildDirectory
             if (Test-Path -LiteralPath (Join-Path $taskApiRoot 'obj\project.assets.json')) { $taskBuildArguments += ' --no-restore' }
             Run-Hidden $taskDotnet $taskBuildArguments $taskRoot 'build'
-            Get-ApiBuildSignature $taskApiRoot $taskDll | Set-Content -LiteralPath $taskBuildStamp -Encoding ASCII
+            $taskNewSignature = Get-ApiBuildSignature $taskApiRoot $taskDll
+            if (!$taskNewSignature) { throw 'Backend build did not produce the required startup files.' }
+            @{ Id = $taskBuildId; Signature = $taskNewSignature } | ConvertTo-Json -Compress | Set-Content -LiteralPath $taskBuildStamp -Encoding ASCII
         } else { Write-Output 'Using the existing backend build.' }
         # Explicit host arguments take precedence over inherited environment settings.
         # Development loads this user's existing .NET user secrets (JWT and SQL).
