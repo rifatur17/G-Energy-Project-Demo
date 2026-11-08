@@ -149,6 +149,65 @@ function Start-ServiceProcess([string]$Executable, [string]$Arguments, [string]$
     Save-State
     return $taskEntry
 }
+function Wait-SqlServer {
+    # Right after Windows starts, the automatic SQL Server service can still be starting.
+    $taskService = Get-Service MSSQLSERVER -ErrorAction SilentlyContinue
+    if (!$taskService) { throw 'SQL Server (MSSQLSERVER) is not installed. See README.md for prerequisites.' }
+    if ($taskService.Status -eq 'Running') { return }
+    if ($taskService.Status -in 'StartPending', 'ContinuePending' -or ($taskService.Status -eq 'Stopped' -and $taskService.StartType -eq 'Automatic')) {
+        try { $taskService.WaitForStatus('Running', [TimeSpan]::FromSeconds(90)); return } catch { }
+    }
+    throw 'SQL Server (MSSQLSERVER) is not running. Open Windows Services, start it, then try again. The database will not be reset.'
+}
+function Repair-LocalSecrets([string]$ApiRoot) {
+    # Local .NET user secrets live outside the repository and can be wiped by cleanup
+    # tools. Fill in only missing development values; never replace working ones.
+    $taskProject = [IO.File]::ReadAllText((Join-Path $ApiRoot 'GEnergy.Api.csproj'))
+    $taskId = [regex]::Match($taskProject, '<UserSecretsId>\s*([^<\s]+)\s*</UserSecretsId>')
+    if (!$taskId.Success) { return }
+    $taskDirectory = Join-Path $env:APPDATA "Microsoft\UserSecrets\$($taskId.Groups[1].Value)"
+    $taskFile = Join-Path $taskDirectory 'secrets.json'
+    $taskSecrets = New-Object PSObject
+    if (Test-Path -LiteralPath $taskFile) {
+        $taskText = [IO.File]::ReadAllText($taskFile)
+        if ($taskText.Trim()) {
+            try { $taskSecrets = $taskText | ConvertFrom-Json } catch { throw "Local user secrets file is not valid JSON: $taskFile. Fix or remove it, then try again." }
+        }
+    }
+    function Get-SecretValue([string]$Key) {
+        $taskEnv = [Environment]::GetEnvironmentVariable($Key.Replace(':', '__'))
+        if ($taskEnv) { return $taskEnv }
+        $taskFlat = $taskSecrets.PSObject.Properties[$Key]
+        if ($taskFlat -and $taskFlat.Value) { return [string]$taskFlat.Value }
+        $taskNode = $taskSecrets
+        foreach ($taskPart in $Key.Split(':')) {
+            if ($taskNode -isnot [PSObject] -or !$taskNode.PSObject.Properties[$taskPart]) { return $null }
+            $taskNode = $taskNode.PSObject.Properties[$taskPart].Value
+        }
+        return [string]$taskNode
+    }
+    $taskChanged = @()
+    $taskKey = Get-SecretValue 'Jwt:SigningKey'
+    if (!$taskKey -or [Text.Encoding]::UTF8.GetByteCount($taskKey) -lt 32) {
+        $taskBytes = New-Object byte[] 48
+        $taskRandom = [Security.Cryptography.RandomNumberGenerator]::Create()
+        try { $taskRandom.GetBytes($taskBytes) } finally { $taskRandom.Dispose() }
+        $taskSecrets | Add-Member -NotePropertyName 'Jwt:SigningKey' -NotePropertyValue ([Convert]::ToBase64String($taskBytes)) -Force
+        $taskChanged += 'JWT signing key'
+    }
+    if (!(Get-SecretValue 'ConnectionStrings:DefaultConnection')) {
+        $taskSecrets | Add-Member -NotePropertyName 'ConnectionStrings:DefaultConnection' -NotePropertyValue 'Server=localhost;Database=GEnergyDb;Integrated Security=True;Encrypt=True;TrustServerCertificate=True' -Force
+        $taskChanged += 'SQL connection'
+    }
+    if (!$taskChanged.Count) { return }
+    New-Item -ItemType Directory -Path $taskDirectory -Force | Out-Null
+    $taskTemporary = $taskFile + '.tmp'
+    [IO.File]::WriteAllText($taskTemporary, ($taskSecrets | ConvertTo-Json -Depth 10), (New-Object Text.UTF8Encoding($false)))
+    if (Test-Path -LiteralPath $taskFile) { [IO.File]::Replace($taskTemporary, $taskFile, ($taskFile + '.bak')) }
+    else { [IO.File]::Move($taskTemporary, $taskFile) }
+    Add-Content -LiteralPath (Join-Path $taskRuntime 'launcher-errors.log') -Value "$([DateTime]::Now.ToString('s')) Restored missing local secret(s): $($taskChanged -join ', '). Values are not logged."
+    Write-Output "Restored missing local secret(s): $($taskChanged -join ', ')."
+}
 function Wait-Ready($Entry, [string]$Url) {
     $taskDeadline = [DateTime]::UtcNow.AddSeconds(45)
     do {
@@ -191,8 +250,7 @@ try {
         return
     }
 
-    $taskSqlService = Get-Service MSSQLSERVER -ErrorAction SilentlyContinue
-    if (!$taskSqlService -or $taskSqlService.Status -ne 'Running') { throw 'SQL Server (MSSQLSERVER) is not running. Open Windows Services, start it, then try again. The database will not be reset.' }
+    Wait-SqlServer
     # Explorer and terminals can have different PATHs, including an x86 .NET host.
     $taskNativeDotnet = if ($env:ProgramW6432) { Join-Path $env:ProgramW6432 'dotnet\dotnet.exe' }
     $taskDotnet = if ($taskNativeDotnet -and (Test-Path -LiteralPath $taskNativeDotnet)) { $taskNativeDotnet } else { Find-Tool 'dotnet.exe' @((Join-Path (Split-Path $taskRoot -Parent) 'runtimes\projectflow-dotnet\dotnet.exe'), "$env:ProgramFiles\dotnet\dotnet.exe") }
@@ -222,6 +280,7 @@ try {
         Run-Hidden $taskNode ('"{0}" ci' -f $taskNpm) $taskWebRoot 'dependencies'
     }
     if (!$taskApiEntry) {
+        Repair-LocalSecrets $taskApiRoot
         $taskCurrentSignature = Get-ApiBuildSignature $taskApiRoot $taskDll
         $taskSavedSignature = $taskCachedBuild.Signature
         if (!$taskCurrentSignature -or $taskCurrentSignature -ne $taskSavedSignature) {
