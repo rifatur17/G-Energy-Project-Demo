@@ -1,0 +1,23 @@
+# Runs the G Energy API in Docker for local development. The frontend still runs on Windows.
+# SQL Server stays on the host (localhost / GEnergyDb); the container reaches it through
+# host.docker.internal with the dedicated SQL login created by scripts/Setup-DockerSqlLogin.ps1.
+name: genergy
+services:
+  api:
+    build:
+      context: .
+      dockerfile: docker/api.Dockerfile
+    image: genergy-api:local
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+    ports:
+      # Loopback only (not reachable from the network). Both IPv4 and IPv6, because Windows
+      # resolves "localhost" to ::1 first and otherwise waits ~2 s before falling back to IPv4.
+      - "127.0.0.1:5080:8080"
+      - "[::1]:5080:8080"
+    volumes:
+      # .NET user secrets (JWT key, ContainerConnection, optional SSLCommerz sandbox keys), read-only.
+      - ${APPDATA}/Microsoft/UserSecrets:/home/app/.microsoft/usersecrets:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: "no"

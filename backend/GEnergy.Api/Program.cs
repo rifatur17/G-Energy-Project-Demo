@@ -17,6 +17,11 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.Extensions.Options;
 using Microsoft.OpenApi;
 var builder = WebApplication.CreateBuilder(args);
+// Inside Docker (Linux) Windows authentication to the host SQL Server is unavailable, so the
+// container uses a dedicated SQL login kept in user secrets as ConnectionStrings:ContainerConnection.
+if (string.Equals(Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER"), "true", StringComparison.OrdinalIgnoreCase)
+    && builder.Configuration.GetConnectionString("ContainerConnection") is { Length: > 0 } containerConnection)
+    builder.Configuration["ConnectionStrings:DefaultConnection"] = containerConnection;
 builder.Services.AddControllers();
 builder.Services.AddOptions<EmailOptions>().BindConfiguration("Email")
     .Validate(o => o.IsValid(builder.Environment.IsDevelopment()), "Configure Email host, sender, TLS security, matching SMTP credentials and an HTTPS login URL (local HTTP is development-only).")

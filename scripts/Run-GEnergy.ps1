@@ -3,7 +3,10 @@
 param(
     [ValidateSet('Start', 'Stop')][string]$Action = 'Start',
     [switch]$NoBrowser,
-    [switch]$Quiet
+    [switch]$Quiet,
+    # Auto: run the API in Docker when Windows Smart App Control is enforcing (it blocks locally
+    # built, unsigned DLLs); otherwise run it directly with the Windows .NET runtime.
+    [ValidateSet('Auto', 'Docker', 'Local')][string]$ApiRuntime = 'Auto'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -92,7 +95,7 @@ function Recover-ProjectProcess([string]$Name, [int]$Port, [string]$Executable, 
         return $taskEntry
     } catch { return $null }
 }
-function Run-Hidden([string]$Executable, [string]$Arguments, [string]$Directory, [string]$Name) {
+function Run-Hidden([string]$Executable, [string]$Arguments, [string]$Directory, [string]$Name, [int]$TimeoutMilliseconds = 120000) {
     $taskInfo = New-Object Diagnostics.ProcessStartInfo
     $taskInfo.FileName = $Executable
     $taskInfo.Arguments = $Arguments
@@ -107,9 +110,9 @@ function Run-Hidden([string]$Executable, [string]$Arguments, [string]$Directory,
         [void]$taskProcess.Start()
         $taskOutput = $taskProcess.StandardOutput.ReadToEndAsync()
         $taskErrors = $taskProcess.StandardError.ReadToEndAsync()
-        if (!$taskProcess.WaitForExit(120000)) {
+        if (!$taskProcess.WaitForExit($TimeoutMilliseconds)) {
             if (!$taskProcess.HasExited) { $taskProcess.Kill(); $taskProcess.WaitForExit() }
-            throw "$Name took more than two minutes. Check your internet connection if dependencies need restoring. See logs in $taskRuntime"
+            throw "$Name took more than $([int]($TimeoutMilliseconds / 60000)) minutes. Check your internet connection if dependencies need restoring. See logs in $taskRuntime"
         }
         [IO.File]::WriteAllText((Join-Path $taskRuntime "$Name.out.log"), $taskOutput.Result)
         [IO.File]::WriteAllText((Join-Path $taskRuntime "$Name.err.log"), $taskErrors.Result)
@@ -208,6 +211,66 @@ function Repair-LocalSecrets([string]$ApiRoot) {
     Add-Content -LiteralPath (Join-Path $taskRuntime 'launcher-errors.log') -Value "$([DateTime]::Now.ToString('s')) Restored missing local secret(s): $($taskChanged -join ', '). Values are not logged."
     Write-Output "Restored missing local secret(s): $($taskChanged -join ', ')."
 }
+function Get-SmartAppControlState {
+    # 0 = off, 1 = on (enforcing), 2 = evaluation. Read-only; the launcher never changes it.
+    try { return [int](Get-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\CI\Policy' -ErrorAction Stop).VerifiedAndReputablePolicyState } catch { return 0 }
+}
+function Find-Docker {
+    $taskCandidates = @((Get-Command docker.exe -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source -First 1),
+        (Join-Path $env:LOCALAPPDATA 'Programs\DockerDesktop\resources\bin\docker.exe'),
+        (Join-Path $env:ProgramFiles 'Docker\Docker\resources\bin\docker.exe')) | Where-Object { $_ -and (Test-Path -LiteralPath $_) }
+    return $taskCandidates | Select-Object -First 1
+}
+function Test-DockerEngine([string]$Docker) {
+    $taskInfo = New-Object Diagnostics.ProcessStartInfo $Docker, 'info --format "{{.ServerVersion}}"'
+    $taskInfo.UseShellExecute = $false; $taskInfo.CreateNoWindow = $true; $taskInfo.RedirectStandardOutput = $true; $taskInfo.RedirectStandardError = $true
+    $taskProcess = [Diagnostics.Process]::Start($taskInfo)
+    try { if (!$taskProcess.WaitForExit(20000)) { $taskProcess.Kill(); return $false }; return $taskProcess.ExitCode -eq 0 } finally { $taskProcess.Dispose() }
+}
+function Start-DockerEngine {
+    $taskDocker = Find-Docker
+    if (!$taskDocker) { throw 'Smart App Control is on, so the API runs in Docker, but Docker Desktop was not found. Install Docker Desktop and try again.' }
+    # Credential helpers live next to docker.exe; a hidden launcher may not have them on PATH.
+    $env:PATH = (Split-Path $taskDocker -Parent) + ';' + $env:PATH
+    if (Test-DockerEngine $taskDocker) { return $taskDocker }
+    $taskDesktop = @((Join-Path $env:LOCALAPPDATA 'Programs\DockerDesktop\Docker Desktop.exe'), (Join-Path $env:ProgramFiles 'Docker\Docker\Docker Desktop.exe')) | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
+    if (!$taskDesktop) { throw 'Docker Desktop is not running and could not be found. Start Docker Desktop, then try again.' }
+    Start-Process -FilePath $taskDesktop | Out-Null
+    $taskDeadline = [DateTime]::UtcNow.AddSeconds(180)
+    while ([DateTime]::UtcNow -lt $taskDeadline) { Start-Sleep -Seconds 3; if (Test-DockerEngine $taskDocker) { return $taskDocker } }
+    throw 'Docker Desktop did not finish starting within 3 minutes. Open Docker Desktop, wait until it says "Engine running", then try again.'
+}
+function Test-ApiContainer([string]$Docker) {
+    $taskInfo = New-Object Diagnostics.ProcessStartInfo $Docker, ('compose -f "{0}" ps --status running -q api' -f (Join-Path $taskRoot 'compose.yaml'))
+    $taskInfo.UseShellExecute = $false; $taskInfo.CreateNoWindow = $true; $taskInfo.RedirectStandardOutput = $true; $taskInfo.RedirectStandardError = $true; $taskInfo.WorkingDirectory = $taskRoot
+    $taskProcess = [Diagnostics.Process]::Start($taskInfo)
+    try { $taskOut = $taskProcess.StandardOutput.ReadToEnd(); [void]$taskProcess.WaitForExit(30000); return $taskProcess.ExitCode -eq 0 -and $taskOut.Trim().Length -gt 0 } finally { $taskProcess.Dispose() }
+}
+function Assert-ContainerSecrets([string]$ApiRoot) {
+    $taskProject = [IO.File]::ReadAllText((Join-Path $ApiRoot 'GEnergy.Api.csproj'))
+    $taskId = [regex]::Match($taskProject, '<UserSecretsId>\s*([^<\s]+)\s*</UserSecretsId>').Groups[1].Value
+    $taskFile = Join-Path $env:APPDATA "Microsoft\UserSecrets\$taskId\secrets.json"
+    $taskOk = $false
+    try { $taskOk = [bool](([IO.File]::ReadAllText($taskFile) | ConvertFrom-Json).PSObject.Properties['ConnectionStrings:ContainerConnection'].Value) } catch { }
+    if (!$taskOk) { throw 'The Docker API needs its own SQL login first. In PowerShell run: scripts\Setup-DockerSqlLogin.ps1 (from the project folder), then double-click Start G Energy again.' }
+}
+function Start-DockerApi([string]$ApiRoot) {
+    $taskDocker = Start-DockerEngine
+    Assert-ContainerSecrets $ApiRoot
+    $taskCompose = Join-Path $taskRoot 'compose.yaml'
+    if (!(Test-ApiContainer $taskDocker)) { Assert-FreePort 5080 }
+    # Rebuilds only what changed; the first build downloads NuGet packages and can take a few minutes.
+    Run-Hidden $taskDocker ('compose -f "{0}" up -d --build api' -f $taskCompose) $taskRoot 'api-docker' 900000
+    $taskDeadline = [DateTime]::UtcNow.AddSeconds(90)
+    do {
+        # 127.0.0.1, not "localhost": avoids the IPv6-first lookup delay on Windows.
+        try { if ((Invoke-WebRequest 'http://127.0.0.1:5080/swagger/v1/swagger.json' -UseBasicParsing -TimeoutSec 5).StatusCode -eq 200) { return } } catch { }
+        if (!(Test-ApiContainer $taskDocker)) { break }
+        Start-Sleep -Milliseconds 700
+    } while ([DateTime]::UtcNow -lt $taskDeadline)
+    Run-Hidden $taskDocker ('compose -f "{0}" logs --no-color --tail 80 api' -f $taskCompose) $taskRoot 'api' 60000
+    throw 'api (Docker) did not become ready. Check api.out.log for the container log. A database login error usually means SQL logins or TCP/IP are not enabled; see scripts\Setup-DockerSqlLogin.ps1.'
+}
 function Wait-Ready($Entry, [string]$Url) {
     $taskDeadline = [DateTime]::UtcNow.AddSeconds(45)
     do {
@@ -245,6 +308,12 @@ try {
         }
         $taskEntries = @()
         Save-State
+        # Stop the Docker API too, without starting Docker Desktop just to stop nothing.
+        $taskDocker = Find-Docker
+        if ($taskDocker -and (Test-DockerEngine $taskDocker)) {
+            $env:PATH = (Split-Path $taskDocker -Parent) + ';' + $env:PATH
+            if (Test-ApiContainer $taskDocker) { Run-Hidden $taskDocker ('compose -f "{0}" stop api' -f (Join-Path $taskRoot 'compose.yaml')) $taskRoot 'api-docker-stop' 120000 }
+        }
         Show-Notice 'G Energy has stopped. SQL Server and all saved database records are kept.'
         Write-Output 'G Energy stopped.'
         return
@@ -270,16 +339,20 @@ try {
     $taskVite = Join-Path $taskWebRoot 'node_modules\vite\bin\vite.js'
     $taskApiEntry = @($taskEntries | Where-Object Name -eq 'api') | Select-Object -First 1
     $taskWebEntry = @($taskEntries | Where-Object Name -eq 'web') | Select-Object -First 1
+    $taskUseDocker = $ApiRuntime -eq 'Docker' -or ($ApiRuntime -eq 'Auto' -and (Get-SmartAppControlState) -eq 1)
     if (!$taskApiEntry) { $taskApiEntry = Recover-ProjectProcess 'api' 5080 $taskDotnet $taskLegacyDll $taskBuildRoot }
     if (!$taskWebEntry) { $taskWebEntry = Recover-ProjectProcess 'web' 5173 $taskNode $taskVite }
-    if (!$taskApiEntry) { Assert-FreePort 5080 }
+    if (!$taskApiEntry -and !$taskUseDocker) { Assert-FreePort 5080 }
     if (!$taskWebEntry) { Assert-FreePort 5173 }
     if (!(Test-Path -LiteralPath $taskVite)) {
         $taskNpm = Join-Path (Split-Path $taskNode -Parent) 'node_modules\npm\bin\npm-cli.js'
         if (!(Test-Path -LiteralPath $taskNpm)) { throw 'npm is missing. Install Node.js with npm and try again.' }
         Run-Hidden $taskNode ('"{0}" ci' -f $taskNpm) $taskWebRoot 'dependencies'
     }
-    if (!$taskApiEntry) {
+    if (!$taskApiEntry -and $taskUseDocker) {
+        Repair-LocalSecrets $taskApiRoot
+        Start-DockerApi $taskApiRoot
+    } elseif (!$taskApiEntry) {
         Repair-LocalSecrets $taskApiRoot
         $taskCurrentSignature = Get-ApiBuildSignature $taskApiRoot $taskDll
         $taskSavedSignature = $taskCachedBuild.Signature
@@ -301,7 +374,8 @@ try {
         $taskApiArguments = '"{0}" --environment Development --contentRoot "{1}" --urls http://localhost:5080' -f $taskDll, $taskApiRoot
         $taskApiEntry = Start-ServiceProcess $taskDotnet $taskApiArguments $taskApiRoot 'api' $taskDll
     }
-    Wait-Ready $taskApiEntry 'http://localhost:5080/swagger/v1/swagger.json'
+    # The Docker API is checked inside Start-DockerApi; a Windows-hosted API is checked here.
+    if ($taskApiEntry) { Wait-Ready $taskApiEntry 'http://localhost:5080/swagger/v1/swagger.json' }
     if (!$taskWebEntry) {
         $taskWebEntry = Start-ServiceProcess $taskNode ('"{0}" --host localhost --port 5173 --strictPort' -f $taskVite) $taskWebRoot 'web' $taskVite
     }
