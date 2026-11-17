@@ -1,7 +1,5 @@
 using System.Globalization;
 using System.Text.Json;
-using GEnergy.Api.Data;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 namespace GEnergy.Api.Services.Billing;
 
@@ -80,19 +78,14 @@ public sealed class SslCommerzGateway(HttpClient http, IOptions<SslCommerzOption
     }
 }
 
-// Used when no SSLCommerz store is configured. It mimics the hosted flow (redirect, choose method,
-// callback, server-side validation) on a page served by this API. No money moves.
-public sealed class DemoSslCommerzGateway(EnergyDbContext db, IOptions<SslCommerzOptions> options) : IPaymentGateway
+// Used when no SSLCommerz store is configured: a local checkout page that lets the customer pick a
+// method and then reports that the payment service is not available. No money moves.
+public sealed class DemoSslCommerzGateway(IOptions<SslCommerzOptions> options) : IPaymentGateway
 {
-    public const string ValPrefix = "DEMO-VAL-";
     public string Name => "SSLCommerzDemo";
     public Task<GatewayInitResult> InitiateAsync(GatewayInitRequest r, CancellationToken ct) =>
         Task.FromResult(new GatewayInitResult(true, $"{options.Value.PublicApiBaseUrl.TrimEnd('/')}/api/payments/sslcommerz-demo/{Uri.EscapeDataString(r.TranId)}", null));
-    public async Task<GatewayValidation> ValidateAsync(string valId, CancellationToken ct)
-    {
-        // The demo page records ValId on the payment before redirecting; a forged id finds nothing.
-        var p = await db.StatementPayments.AsNoTracking().SingleOrDefaultAsync(x => x.ValId == valId && x.Gateway == Name, ct);
-        if (p is null || !valId.StartsWith(ValPrefix, StringComparison.Ordinal)) return new(false, null, 0, null, null, null, "Demo gateway did not confirm this payment.");
-        return new(true, p.TranId, p.Amount, p.Currency, "DEMO-BANK-" + p.Id, p.CardType, null);
-    }
+    // No real payment is connected in demo mode, so nothing can ever be confirmed (forged callbacks included).
+    public Task<GatewayValidation> ValidateAsync(string valId, CancellationToken ct) =>
+        Task.FromResult(new GatewayValidation(false, null, 0, null, null, null, "Demo checkout cannot confirm payments."));
 }

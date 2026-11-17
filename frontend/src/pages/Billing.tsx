@@ -32,6 +32,10 @@ const results: Record<string, { kind: "success" | "error"; text: string }> = {
     kind: "error",
     text: "SSLCommerz did not confirm this payment, so the statement was not marked paid.",
   },
+  unavailable: {
+    kind: "error",
+    text: "This payment service is not available at the moment. Nothing was charged and your statement is still due.",
+  },
 };
 export function Billing() {
   const api = useBillingApi();

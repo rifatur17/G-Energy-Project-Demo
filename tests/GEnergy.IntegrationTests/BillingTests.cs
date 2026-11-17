@@ -76,7 +76,7 @@ public sealed class BillingTests
         Assert.Equal(0m, second.PlanFee); Assert.Equal(250m, second.Total); Assert.NotEqual(first.StatementNumber, second.StatementNumber);
     }
     [Fact]
-    public async Task Demo_sslcommerz_checkout_pays_once_and_marks_sessions_paid()
+    public async Task Demo_checkout_says_service_unavailable_and_charges_nothing()
     {
         await using var s = await BillingFixture.Create();
         var done = await BillingFixture.Completed(s); var statement = await BillingFixture.Close(s);
@@ -84,22 +84,27 @@ public sealed class BillingTests
         Assert.Equal("SSLCommerzDemo", checkout.Gateway); Assert.Equal(250m, checkout.Amount);
         var browser = BillingFixture.Browser(s); var path = new Uri(checkout.RedirectUrl).PathAndQuery;
         var page = await browser.GetStringAsync(path);
-        Assert.Contains("250.00", page); Assert.Contains("bKash", page); Assert.Contains("Nagad", page);
+        Assert.Contains("250.00", page); Assert.Contains("bKash", page); Assert.Contains("Nagad", page); Assert.Contains("VISA", page);
 
-        var submit = await browser.PostAsync(path, new FormUrlEncodedContent(new Dictionary<string, string> { ["action"] = "pay", ["method"] = "BKASH-BKash" }));
-        Assert.Equal(HttpStatusCode.Redirect, submit.StatusCode);
-        var success = submit.Headers.Location!; Assert.Contains("/api/payments/sslcommerz/success", success.ToString());
-        var back = await browser.GetAsync(success.PathAndQuery);
-        Assert.Equal(HttpStatusCode.Redirect, back.StatusCode); Assert.Equal($"http://localhost:5173/billing?payment=paid&statement={statement.Id}", back.Headers.Location!.ToString());
-        // The same callback again (browser refresh or IPN) must not apply a second payment.
-        Assert.Contains("payment=paid", (await browser.GetAsync(success.PathAndQuery)).Headers.Location!.ToString());
+        foreach (var method in new[] { "BKASH-BKash", "VISA-Dutch Bangla" })
+        {
+            var attempt = method == "BKASH-BKash" ? checkout : await BillingFixture.Checkout(s, statement.Id);
+            var submit = await browser.PostAsync(new Uri(attempt.RedirectUrl).PathAndQuery, new FormUrlEncodedContent(new Dictionary<string, string> { ["action"] = "pay", ["method"] = method }));
+            Assert.Equal(HttpStatusCode.OK, submit.StatusCode);
+            var html = await submit.Content.ReadAsStringAsync();
+            Assert.Contains("This service is not available at the moment", html); Assert.Contains("Nothing was charged", html);
+            Assert.Contains($"http://localhost:5173/billing?payment=unavailable&amp;statement={statement.Id}", html);
+        }
+        // A demo validation can never confirm a payment, so a success callback cannot mark it paid either.
+        Assert.Contains("payment=unconfirmed", (await browser.GetAsync($"/api/payments/sslcommerz/success?tran_id={checkout.TranId}&val_id=anything")).Headers.Location!.ToString());
 
         var detail = (await BillingFixture.Detail(s, statement.Id))!;
-        Assert.Equal("Paid", detail.Statement.Status); Assert.Equal(checkout.TranId, detail.Statement.PaymentReference);
-        var paid = Assert.Single(detail.Payments); Assert.Equal("Paid", paid.Status); Assert.Equal("BKASH-BKash", paid.Method);
-        var session = (await s.Progress(done.Id))!; Assert.Equal("Paid", session.PaymentStatus); Assert.Equal(checkout.TranId, session.PaymentReference);
-        Assert.Equal(HttpStatusCode.Conflict, (await s.Client.PostAsync($"/api/billing/statements/{statement.Id}/checkout", null)).StatusCode);
-        Assert.Equal(0m, (await s.Client.GetFromJsonAsync<BillingSummaryResponse>("/api/billing/summary"))!.OutstandingAmount);
+        Assert.Equal("Due", detail.Statement.Status); Assert.Null(detail.Statement.PaymentReference);
+        Assert.All(detail.Payments, p => { Assert.Equal("Failed", p.Status); Assert.Contains("not available", p.FailureReason); });
+        Assert.Equal(["VISA-Dutch Bangla", "BKASH-BKash"], detail.Payments.Select(p => p.Method ?? "").ToArray());
+        Assert.Equal("Unpaid", (await s.Progress(done.Id))!.PaymentStatus);
+        Assert.Equal(250m, (await s.Client.GetFromJsonAsync<BillingSummaryResponse>("/api/billing/summary"))!.OutstandingAmount);
+        Assert.Contains("already", await browser.GetStringAsync(path));
     }
     [Fact]
     public async Task Forged_failed_and_cancelled_callbacks_never_mark_a_statement_paid()
@@ -112,7 +117,7 @@ public sealed class BillingTests
         Assert.Contains("payment=unconfirmed", (await browser.GetAsync("/api/payments/sslcommerz/success?tran_id=GEUNKNOWN&val_id=x")).Headers.Location!.ToString());
 
         var failed = await BillingFixture.Checkout(s, statement.Id);
-        var fail = await browser.PostAsync(new Uri(failed.RedirectUrl).PathAndQuery, new FormUrlEncodedContent(new Dictionary<string, string> { ["action"] = "fail" }));
+        var fail = await browser.PostAsync(new Uri(failed.RedirectUrl).PathAndQuery, new FormUrlEncodedContent(new Dictionary<string, string> { ["action"] = "pay" })); // no method chosen
         Assert.Contains("payment=failed", (await browser.GetAsync(fail.Headers.Location!.PathAndQuery)).Headers.Location!.ToString());
         var cancelled = await BillingFixture.Checkout(s, statement.Id);
         Assert.Contains("payment=cancelled", (await browser.PostAsync("/api/payments/sslcommerz/cancel", new FormUrlEncodedContent(new Dictionary<string, string> { ["tran_id"] = cancelled.TranId }))).Headers.Location!.ToString());

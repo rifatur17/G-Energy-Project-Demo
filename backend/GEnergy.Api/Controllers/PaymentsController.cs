@@ -49,6 +49,30 @@ public sealed class PaymentsController(BillingService billing, IOptions<SslComme
         ("VISA-Dutch Bangla", "VISA", "Cards"), ("MASTER-City Bank", "Mastercard", "Cards"), ("AMEX-City Bank", "American Express", "Cards"),
         ("CITYTOUCH-City Bank", "City Touch", "Internet banking")
     ];
+    private static string Page(string body) => $$"""
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>SSLCommerz demo checkout</title>
+<style>
+body{margin:0;font-family:"Segoe UI",Arial,sans-serif;background:#eef2f6;color:#1d2a35}
+.top{background:#fff;border-bottom:1px solid #dde3ea;padding:14px 20px;display:flex;justify-content:space-between;align-items:center;gap:12px}
+.logo{font-weight:700;font-size:17px;color:#1d2a35}.tag{font-size:11px;background:#fff4d6;color:#7a5600;border:1px solid #f1d38a;border-radius:4px;padding:3px 8px;white-space:nowrap}
+main{max-width:560px;margin:24px auto;padding:0 16px}.card{background:#fff;border-radius:10px;box-shadow:0 2px 10px #0001;padding:20px}
+.row{display:flex;justify-content:space-between;margin:4px 0;font-size:14px;gap:12px}.amt{font-size:26px;font-weight:700;margin:6px 0 2px}
+fieldset{border:0;padding:0;margin:16px 0 0}legend{font-size:12px;font-weight:700;color:#5b6b78;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
+.m{display:inline-flex;margin:0 8px 8px 0}.m input{position:absolute;opacity:0}.m span{border:1px solid #cfd8e1;border-radius:8px;padding:10px 14px;font-weight:600;cursor:pointer;min-width:90px;text-align:center}
+.m input:checked+span{border-color:#0b5394;background:#e8f0fb;color:#0b5394}.m input:focus-visible+span{outline:3px solid #0b5394}
+.btns{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap}button,.btn{border:0;border-radius:8px;padding:12px 18px;font-weight:700;cursor:pointer;font-size:15px;text-decoration:none;display:inline-block;text-align:center}
+.pay{background:#0b8f4d;color:#fff;flex:1}.cancel{background:#eef2f6;color:#334}
+.unavailable{border:1px solid #f1c27d;background:#fff8ec;border-radius:10px;padding:16px;margin:14px 0}
+.unavailable h1{font-size:19px;margin:0 0 6px;color:#8a4b00}.unavailable p{margin:4px 0;font-size:14px;line-height:1.6}
+.note{font-size:12px;color:#5b6b78;margin-top:14px;line-height:1.5}
+</style></head><body>
+<div class="top"><span class="logo">Demo checkout · stands in for SSLCommerz</span><span class="tag">DEMO · no real money</span></div>
+<main><div class="card">{{body}}</div></main></body></html>
+""";
+    private static string Summary(Entities.StatementPayment p) =>
+        $"<div class=\"row\"><span>Merchant</span><strong>G Energy</strong></div><div class=\"row\"><span>Statement</span><strong>{WebUtility.HtmlEncode(p.Statement.StatementNumber)}</strong></div>" +
+        $"<div class=\"row\"><span>Transaction</span><span>{WebUtility.HtmlEncode(p.TranId)}</span></div><div class=\"amt\">৳ {p.Amount:0.00} BDT</div>";
+
     [HttpGet("api/payments/sslcommerz-demo/{tranId}")]
     public async Task<IActionResult> DemoPage(string tranId, CancellationToken ct)
     {
@@ -57,36 +81,11 @@ public sealed class PaymentsController(BillingService billing, IOptions<SslComme
         if (p is null) return NotFound();
         var e = (string s) => WebUtility.HtmlEncode(s);
         var options = string.Join("", Methods.GroupBy(m => m.Group).Select(g => $"<fieldset><legend>{e(g.Key)}</legend>{string.Join("", g.Select((m, i) => $"<label class=\"m\"><input type=\"radio\" name=\"method\" value=\"{e(m.Value)}\"{(g.Key == "Mobile banking" && i == 0 ? " checked" : "")}><span>{e(m.Label)}</span></label>"))}</fieldset>"));
-        var done = p.Status != "Initiated";
-        var html = $$"""
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>SSLCommerz demo checkout</title>
-<style>
-body{margin:0;font-family:"Segoe UI",Arial,sans-serif;background:#eef2f6;color:#1d2a35}
-.top{background:#fff;border-bottom:1px solid #dde3ea;padding:14px 20px;display:flex;justify-content:space-between;align-items:center}
-.logo{font-weight:700;font-size:17px;color:#1d2a35}.tag{font-size:11px;background:#fff4d6;color:#7a5600;border:1px solid #f1d38a;border-radius:4px;padding:3px 8px}
-main{max-width:560px;margin:24px auto;padding:0 16px}.card{background:#fff;border-radius:10px;box-shadow:0 2px 10px #0001;padding:20px}
-.row{display:flex;justify-content:space-between;margin:4px 0;font-size:14px}.amt{font-size:26px;font-weight:700;margin:6px 0 2px}
-fieldset{border:0;padding:0;margin:16px 0 0}legend{font-size:12px;font-weight:700;color:#5b6b78;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
-.m{display:inline-flex;margin:0 8px 8px 0}.m input{position:absolute;opacity:0}.m span{border:1px solid #cfd8e1;border-radius:8px;padding:10px 14px;font-weight:600;cursor:pointer;min-width:90px;text-align:center}
-.m input:checked+span{border-color:#0b5394;background:#e8f0fb;color:#0b5394}.m input:focus-visible+span{outline:3px solid #0b5394}
-.btns{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap}button{border:0;border-radius:8px;padding:12px 18px;font-weight:700;cursor:pointer;font-size:15px}
-.pay{background:#0b8f4d;color:#fff;flex:1}.fail{background:#fde8e8;color:#9b1c1c}.cancel{background:#eef2f6;color:#334}
-.note{font-size:12px;color:#5b6b78;margin-top:14px;line-height:1.5}
-</style></head><body>
-<div class="top"><span class="logo">Demo checkout · stands in for SSLCommerz</span><span class="tag">DEMO · no real money</span></div>
-<main><div class="card">
-<div class="row"><span>Merchant</span><strong>G Energy</strong></div>
-<div class="row"><span>Statement</span><strong>{{e(p.Statement.StatementNumber)}}</strong></div>
-<div class="row"><span>Transaction</span><span>{{e(p.TranId)}}</span></div>
-<div class="amt">৳ {{p.Amount:0.00}} BDT</div>
-{{(done ? $"<p>This checkout is already <strong>{e(p.Status)}</strong>.</p>" : $"""
-<form method="post" action="/api/payments/sslcommerz-demo/{e(p.TranId)}">{options}
-<div class="btns"><button class="pay" name="action" value="pay">Pay ৳ {p.Amount:0.00}</button><button class="fail" name="action" value="fail">Simulate failure</button><button class="cancel" name="action" value="cancel">Cancel</button></div></form>
-""")}}
-<p class="note">This page stands in for the SSLCommerz hosted checkout while no SSLCommerz store is configured. It follows the same steps: redirect, choose a method, callback to G Energy, then server-side validation before the statement is marked paid. Add SslCommerz:StoreId and SslCommerz:StorePassword in user secrets to use the real SSLCommerz sandbox.</p>
-</div></main></body></html>
-""";
-        return Content(html, "text/html; charset=utf-8");
+        var body = Summary(p) + (p.Status != "Initiated"
+            ? $"<p>This checkout is already <strong>{e(p.Status)}</strong>.</p><p><a class=\"btn cancel\" href=\"{e(BillingUrl("failed", p.StatementId))}\">Return to G Energy</a></p>"
+            : $"<form method=\"post\" action=\"/api/payments/sslcommerz-demo/{e(p.TranId)}\">{options}<div class=\"btns\"><button class=\"pay\" name=\"action\" value=\"pay\">Pay ৳ {p.Amount:0.00}</button><button class=\"cancel\" name=\"action\" value=\"cancel\">Cancel</button></div></form>")
+            + "<p class=\"note\">This page stands in for the SSLCommerz hosted checkout while no SSLCommerz store is configured. Real payment is not connected yet, so no method can be charged here. Add SSLCommerz sandbox credentials (scripts\\Set-SslCommerzSandbox.ps1) to open the real SSLCommerz sandbox page instead.</p>";
+        return Content(Page(body), "text/html; charset=utf-8");
     }
     [HttpPost("api/payments/sslcommerz-demo/{tranId}")]
     public async Task<IActionResult> DemoSubmit(string tranId, CancellationToken ct)
@@ -95,9 +94,14 @@ fieldset{border:0;padding:0;margin:16px 0 0}legend{font-size:12px;font-weight:70
         var api = ssl.Value.PublicApiBaseUrl.TrimEnd('/') + "/api/payments/sslcommerz";
         var action = Field("action"); var method = Field("method");
         if (action == "cancel") return Redirect($"{api}/cancel?tran_id={Uri.EscapeDataString(tranId)}");
-        if (action != "pay" || !Methods.Any(m => m.Value == method)) return Redirect($"{api}/fail?tran_id={Uri.EscapeDataString(tranId)}&error={Uri.EscapeDataString("Simulated payment failure at the gateway.")}");
-        var valId = await billing.DemoApprove(tranId, method, ct);
-        if (valId is null) return NotFound();
-        return Redirect($"{api}/success?tran_id={Uri.EscapeDataString(tranId)}&val_id={Uri.EscapeDataString(valId)}");
+        if (action != "pay" || !Methods.Any(m => m.Value == method)) return Redirect($"{api}/fail?tran_id={Uri.EscapeDataString(tranId)}&error={Uri.EscapeDataString("No payment method was chosen.")}");
+        // No real payment is connected in demo mode: every method reports that the service is unavailable.
+        var p = await billing.DemoUnavailable(tranId, method, ct);
+        if (p is null) return NotFound();
+        var label = Methods.First(m => m.Value == method).Label;
+        var body = Summary(p) + $"<div class=\"unavailable\" role=\"alert\"><h1>This service is not available at the moment</h1><p>{WebUtility.HtmlEncode(label)} payment cannot be completed right now. Nothing was charged.</p><p lang=\"bn\">এই মুহূর্তে সেবাটি পাওয়া যাচ্ছে না। কোনো টাকা কাটা হয়নি।</p></div>" +
+            $"<div class=\"btns\"><a class=\"btn pay\" href=\"{WebUtility.HtmlEncode(BillingUrl("unavailable", p.StatementId))}\">Return to G Energy</a></div>";
+        return Content(Page(body), "text/html; charset=utf-8");
     }
+    private string BillingUrl(string result, long statement) => $"{ssl.Value.FrontendBaseUrl.TrimEnd('/')}/billing?payment={result}&statement={statement}";
 }

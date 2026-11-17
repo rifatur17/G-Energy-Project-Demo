@@ -170,15 +170,19 @@ public sealed class BillingService(EnergyDbContext db, TimeProvider clock, IOpti
         if (p.Status == "Initiated") { p.Status = status; p.FailureReason = Trim(reason); p.CompletedAtUtc = Now; await db.SaveChangesAsync(ct); }
         await Commit(tx, ct); return new(false, p.StatementId, reason);
     }
-    // Demo checkout page: records what the simulated customer chose, then hands back a validation id.
+    // Demo checkout page (no real payment connected).
     public async Task<StatementPayment?> DemoPayment(string tranId, CancellationToken ct) =>
         await db.StatementPayments.AsNoTracking().Include(p => p.Statement).SingleOrDefaultAsync(p => p.TranId == tranId && p.Gateway == "SSLCommerzDemo", ct);
-    public async Task<string?> DemoApprove(string tranId, string method, CancellationToken ct)
+    public async Task<StatementPayment?> DemoUnavailable(string tranId, string method, CancellationToken ct)
     {
-        var p = await db.StatementPayments.SingleOrDefaultAsync(x => x.TranId == tranId && x.Gateway == "SSLCommerzDemo", ct);
-        if (p is null || p.Status != "Initiated") return p?.ValId;
-        p.ValId = DemoSslCommerzGateway.ValPrefix + Guid.NewGuid().ToString("N").ToUpperInvariant(); p.CardType = method;
-        await db.SaveChangesAsync(ct); return p.ValId;
+        var p = await db.StatementPayments.Include(x => x.Statement).SingleOrDefaultAsync(x => x.TranId == tranId && x.Gateway == "SSLCommerzDemo", ct);
+        if (p is null) return null;
+        if (p.Status == "Initiated")
+        {
+            p.Status = "Failed"; p.CardType = method; p.FailureReason = "Payment service is not available at the moment (demo checkout)."; p.CompletedAtUtc = Now;
+            await db.SaveChangesAsync(ct);
+        }
+        return p;
     }
     private async Task<StatementPayment> LockPayment(string tranId, CancellationToken ct)
     {

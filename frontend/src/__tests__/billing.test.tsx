@@ -129,4 +129,9 @@ it("reports the gateway result when SSLCommerz sends the customer back", async (
   expect(await screen.findByRole("alert")).toHaveTextContent(
     "cancelled the SSLCommerz checkout",
   );
+  cleanup();
+  page("/billing?payment=unavailable&statement=5");
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "This payment service is not available at the moment. Nothing was charged",
+  );
 });

@@ -25,6 +25,18 @@ Double-click **Stop G Energy.vbs** when finished. It stops only this project's r
 
 The Windows launcher explicitly starts the API in Development with the API folder as its content root, so inherited `DOTNET_ENVIRONMENT` or `ASPNETCORE_ENVIRONMENT` settings do not prevent loading the existing local JWT and SQL secrets. If the local user secrets were deleted (for example by a cleanup tool), Start fills in only the missing values: a new random JWT signing key and the local Windows-authentication `GEnergyDb` connection shown below. Existing values, including SMTP settings, are never replaced, and secret values are never logged. Previously issued login tokens stop working after a new key is created, so users sign in again. Right after Windows starts, Start waits up to 90 seconds for an automatic SQL Server service to finish starting. It prefers the native Windows .NET installation and reuses the last successful backend build when its inputs and main outputs are unchanged. Each rebuild writes to a fresh folder under `%LOCALAPPDATA%\GEnergyLauncher`, so locked DLLs in `bin\Release` or an older launcher build do not block copying the new output. Start can recover a still-running older launcher build even if the build pointer or saved process entry is missing. The build does not generate a Windows executable because the launcher runs the DLL.
 
+## Windows Smart App Control: API in Docker
+
+Windows 11 Smart App Control, once it leaves evaluation mode, blocks locally built unsigned DLLs ("An Application Control policy has blocked this file"). G Energy keeps Smart App Control on and runs the API in a Linux container instead. The launcher detects this automatically (`-ApiRuntime Auto`; force with `Docker` or `Local`). The frontend and SQL Server stay on Windows.
+
+One-time setup on such a PC:
+
+1. Install and start Docker Desktop.
+2. In SQL Server, enable **SQL Server and Windows Authentication mode** and **TCP/IP on port 1433**, then restart the MSSQLSERVER service. These are SQL Server security settings, so the owner of the PC makes the change.
+3. Run `scripts\Setup-DockerSqlLogin.ps1` from the repository root. It asks for a password, creates or updates the SQL login `genergy_app` with access to GEnergyDb only (read, write and schema changes for reviewed migrations), and stores `ConnectionStrings:ContainerConnection` in user secrets. It never drops or resets the database.
+
+After that, **Start G Energy.vbs** builds the `genergy-api:local` image with `compose.yaml` (the first build downloads packages and takes a few minutes), mounts the user secrets read-only, and waits for the API on http://localhost:5080. **Stop G Energy.vbs** also stops the container. Secrets are never copied into the image. Run backend tests in the SDK container with `scripts\Test-InDocker.ps1`; frontend tests still run on Windows with `npm test`.
+
 ## Backend setup (PowerShell, repository root)
 
 Launcher troubleshooting: repeated Start/Stop clicks during an operation are ignored without stacking error windows. Notices release the operation lock before waiting for OK. Dependency/build commands time out after two minutes instead of holding the lock indefinitely. Once dependencies are installed, backend builds skip restore so an unavailable internet connection does not block normal startup. After changing backend package references, run `dotnet restore` once before using the launcher.
@@ -98,13 +110,8 @@ Following the G-charge PRD (no stored-value wallet; BILL-02, PAY-02, PAY-04), ch
 
 - A statement collects every unbilled completed session plus the owner plan fee: Tk 200 per car per month after three free months, charged once per month. Personal statements fall due 7 days after issue. Repeating the month close with nothing new issues nothing.
 - Checkout creates a `StatementPayment` with a unique `tran_id`. SSLCommerz returns the browser to `/api/payments/sslcommerz/success|fail|cancel`, and `/ipn` accepts server notifications when the API is public. A success is applied only after the gateway validation API confirms the same `tran_id`, amount and BDT currency. A filtered unique index allows one paid payment per statement, so repeated callbacks never double-apply. Paid statements mark their sessions `Paid` with the transaction reference.
-- Without credentials the API serves a clearly labelled demo checkout at `/api/payments/sslcommerz-demo/{tranId}` that follows the same redirect → callback → validation steps. No money moves.
-- To use the real SSLCommerz sandbox, register a sandbox store at developer.sslcommerz.com and keep the credentials in user secrets, never in Git:
-
-```powershell
-dotnet user-secrets set 'SslCommerz:StoreId' '<sandbox store id>' --project backend/GEnergy.Api
-dotnet user-secrets set 'SslCommerz:StorePassword' '<sandbox store password>' --project backend/GEnergy.Api
-```
+- Without credentials the API serves a clearly labelled demo checkout at `/api/payments/sslcommerz-demo/{tranId}`. The customer picks bKash, Nagad, Rocket, a card or internet banking, and the page answers "This service is not available at the moment" (also in Bangla). The attempt is recorded as failed, nothing is charged and the statement stays due. The demo gateway can never confirm a payment, so a forged success callback cannot mark a statement paid.
+- To use the real SSLCommerz sandbox page, register a free sandbox store at developer.sslcommerz.com, then run `scripts\Set-SslCommerzSandbox.ps1` and type the Store ID and Store Password. They are saved in user secrets (never in Git). Restart G Energy. `scripts\Set-SslCommerzSandbox.ps1 -Remove` returns to the demo checkout.
 
 `SslCommerz:Sandbox` (default `true`), `SslCommerz:PublicApiBaseUrl` (default `http://localhost:5080`) and `SslCommerz:FrontendBaseUrl` (default `http://localhost:5173`) set the gateway host and callback URLs. `Billing:DueDays`, `Billing:PlanFeePerVehicle`, `Billing:FreeMonths` and `Billing:AllowDemoMonthClose` tune the statement rules. Apply the additive `AddPostpaidStatements` migration before starting the API.
 
