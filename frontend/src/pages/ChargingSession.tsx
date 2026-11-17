@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useChargingApi, type Session } from "../features/charging/api";
-import { SessionPayment } from "../features/wallet/SessionPayment";
+import { useAuth } from "../features/auth/AuthContext";
 export function ChargingSession() {
+  const { user } = useAuth();
   const api = useChargingApi(),
     { id } = useParams();
   const [session, setSession] = useState<Session | null>(null),
@@ -161,29 +162,27 @@ export function ChargingSession() {
                 </p>
               </>
             )}
-            <SessionPayment
-              session={session}
-              onPaid={(reference) =>
-                setSession({
-                  ...session,
-                  paymentStatus: "Paid",
-                  paymentReference: reference,
-                  settlementNote:
-                    "Paid from demo wallet; no real money transferred.",
-                })
-              }
-            />
             {session.paymentReference && (
               <p className="transaction-reference">
                 Payment reference: {session.paymentReference}
               </p>
             )}
             <p className="settlement-note">
-              <strong>Payment: {session.paymentStatus}</strong> ·{" "}
-              {session.settlementNote}
+              <strong>
+                Payment:{" "}
+                {session.paymentStatus === "Paid"
+                  ? "Paid"
+                  : session.status === "Active"
+                    ? "Billed after charging"
+                    : "On monthly statement"}
+              </strong>{" "}
+              · {session.settlementNote}
               {session.settlementNote.endsWith(".") ? "" : "."}{" "}
               {session.paymentStatus === "Unpaid" &&
-                "No wallet charge has been made."}
+                user?.role === "CarOwner" &&
+                session.status === "Completed" && (
+                  <Link to="/billing">View billing ↗</Link>
+                )}
             </p>
           </article>
         )

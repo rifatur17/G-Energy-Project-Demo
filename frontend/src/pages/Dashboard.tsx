@@ -23,8 +23,9 @@ const modules: Record<
       owner: "Member 3",
     },
     {
-      title: "Wallet & payments",
-      description: "Simulated top-ups, charging bills and auditable refunds.",
+      title: "Billing & statements",
+      description:
+        "Postpaid monthly statements, paid through SSLCommerz (bKash, Nagad, cards).",
       owner: "Member 4",
     },
   ],
@@ -116,7 +117,7 @@ export function Dashboard({ role }: { role: Role }) {
                     <Link
                       to={
                         m.owner === "Member 4"
-                          ? "/wallet"
+                          ? "/billing"
                           : m.owner === "Member 3"
                             ? "/bookings"
                             : m.title === "Find a charging point"

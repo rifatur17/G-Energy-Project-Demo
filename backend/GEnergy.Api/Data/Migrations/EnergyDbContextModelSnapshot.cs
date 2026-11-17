@@ -25,6 +25,98 @@ namespace GEnergy.Api.Data.Migrations
             modelBuilder.HasSequence("UserCodeNumbers")
                 .StartsAt(1001L);
 
+            modelBuilder.Entity("GEnergy.Api.Entities.BillingStatement", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<decimal>("ChargingTotal")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("DueAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("IssuedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long>("OwnerUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime?>("PaidAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("PaymentReference")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<DateTime>("PeriodEndUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("PeriodKey")
+                        .IsRequired()
+                        .HasMaxLength(7)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(7)");
+
+                    b.Property<DateTime>("PeriodStartUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<decimal>("PlanFee")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("PlanVehicleCount")
+                        .HasColumnType("int");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<int>("Sequence")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SessionCount")
+                        .HasColumnType("int");
+
+                    b.Property<string>("StatementNumber")
+                        .IsRequired()
+                        .HasMaxLength(48)
+                        .HasColumnType("nvarchar(48)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(16)");
+
+                    b.Property<decimal>("Total")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StatementNumber")
+                        .IsUnique();
+
+                    b.HasIndex("OwnerUserId", "PeriodKey", "Sequence")
+                        .IsUnique();
+
+                    b.ToTable("BillingStatements", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Statements_Amounts", "[ChargingTotal] >= 0 AND [PlanFee] >= 0 AND [Total] = [ChargingTotal] + [PlanFee] AND [Total] > 0 AND [SessionCount] >= 0 AND [PlanVehicleCount] >= 0 AND [Sequence] >= 1");
+
+                            t.HasCheckConstraint("CK_Statements_Dates", "[PeriodEndUtc] >= [PeriodStartUtc] AND [DueAtUtc] >= [IssuedAtUtc]");
+
+                            t.HasCheckConstraint("CK_Statements_Status", "[Status] IN ('Issued','Paid') AND (([Status] = 'Paid' AND [PaidAtUtc] IS NOT NULL) OR ([Status] = 'Issued' AND [PaidAtUtc] IS NULL))");
+                        });
+                });
+
             modelBuilder.Entity("GEnergy.Api.Entities.Booking", b =>
                 {
                     b.Property<long>("Id")
@@ -240,6 +332,9 @@ namespace GEnergy.Api.Data.Migrations
                     b.Property<long>("StartedByUserId")
                         .HasColumnType("bigint");
 
+                    b.Property<long?>("StatementId")
+                        .HasColumnType("bigint");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(16)
@@ -263,7 +358,7 @@ namespace GEnergy.Api.Data.Migrations
                         .HasDatabaseName("UX_Sessions_ActiveCharger")
                         .HasFilter("[Status] = 'Active'");
 
-                    b.HasIndex("PayerOwnerUserId");
+                    b.HasIndex("StatementId");
 
                     b.HasIndex("VehicleId")
                         .IsUnique()
@@ -272,11 +367,103 @@ namespace GEnergy.Api.Data.Migrations
 
                     b.HasIndex("StartedByUserId", "StartedAtUtc");
 
+                    b.HasIndex("PayerOwnerUserId", "StatementId", "Status");
+
                     b.ToTable("ChargingSessions", null, t =>
                         {
                             t.HasCheckConstraint("CK_Sessions_Numbers", "[CapacityKWh] > 0 AND [PowerKW] > 0 AND [TariffPerKWh] > 0 AND [SimulationSpeed] > 0 AND [ConsumptionKWhPerKm] > 0 AND [InitialBatteryPercent] BETWEEN 0 AND 100 AND [BatteryPercent] BETWEEN 0 AND 100 AND [EnergyKWh] >= 0 AND [EnergyKWh] <= [CapacityKWh] AND [Cost] >= 0 AND [ElapsedSeconds] >= 0");
 
                             t.HasCheckConstraint("CK_Sessions_Status", "[Status] IN ('Active','Completed') AND [PaymentStatus] IN ('Unpaid','Paid') AND (([Status] = 'Active' AND [EndedAtUtc] IS NULL) OR ([Status] = 'Completed' AND [EndedAtUtc] IS NOT NULL AND [EndedAtUtc] >= [StartedAtUtc]))");
+                        });
+                });
+
+            modelBuilder.Entity("GEnergy.Api.Entities.StatementPayment", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("BankTranId")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<string>("CardType")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime?>("CompletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(3)");
+
+                    b.Property<string>("FailureReason")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Gateway")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(24)");
+
+                    b.Property<long>("OwnerUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<long>("StatementId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(16)");
+
+                    b.Property<string>("TranId")
+                        .IsRequired()
+                        .HasMaxLength(48)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(48)");
+
+                    b.Property<string>("ValId")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StatementId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_StatementPayments_PaidStatement")
+                        .HasFilter("[Status] = 'Paid'");
+
+                    b.HasIndex("TranId")
+                        .IsUnique();
+
+                    b.HasIndex("OwnerUserId", "CreatedAtUtc");
+
+                    b.ToTable("StatementPayments", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_StatementPayments_Amount", "[Amount] > 0 AND [Currency] = 'BDT'");
+
+                            t.HasCheckConstraint("CK_StatementPayments_Status", "[Status] IN ('Initiated','Paid','Failed','Cancelled')");
                         });
                 });
 
@@ -646,6 +833,17 @@ namespace GEnergy.Api.Data.Migrations
                         });
                 });
 
+            modelBuilder.Entity("GEnergy.Api.Entities.BillingStatement", b =>
+                {
+                    b.HasOne("GEnergy.Api.Entities.User", "Owner")
+                        .WithMany()
+                        .HasForeignKey("OwnerUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Owner");
+                });
+
             modelBuilder.Entity("GEnergy.Api.Entities.Booking", b =>
                 {
                     b.HasOne("GEnergy.Api.Entities.User", "BookedBy")
@@ -710,6 +908,11 @@ namespace GEnergy.Api.Data.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("GEnergy.Api.Entities.BillingStatement", "Statement")
+                        .WithMany()
+                        .HasForeignKey("StatementId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("GEnergy.Api.Entities.Vehicle", "Vehicle")
                         .WithMany()
                         .HasForeignKey("VehicleId")
@@ -724,7 +927,20 @@ namespace GEnergy.Api.Data.Migrations
 
                     b.Navigation("StartedBy");
 
+                    b.Navigation("Statement");
+
                     b.Navigation("Vehicle");
+                });
+
+            modelBuilder.Entity("GEnergy.Api.Entities.StatementPayment", b =>
+                {
+                    b.HasOne("GEnergy.Api.Entities.BillingStatement", "Statement")
+                        .WithMany()
+                        .HasForeignKey("StatementId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Statement");
                 });
 
             modelBuilder.Entity("GEnergy.Api.Entities.Vehicle", b =>

@@ -24,7 +24,7 @@ export function Layout() {
               {user.role !== "Admin" && (
                 <Link to="/bookings">Bookings & charging</Link>
               )}
-              {user.role === "CarOwner" && <Link to="/wallet">Wallet</Link>}
+              {user.role === "CarOwner" && <Link to="/billing">Billing</Link>}
               <button className="text-button" onClick={logout}>
                 Log out
               </button>

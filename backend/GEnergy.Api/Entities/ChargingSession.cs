@@ -29,5 +29,7 @@ public sealed class ChargingSession
     public decimal EnergyKWh { get; set; }
     public decimal Cost { get; set; }
     public decimal ElapsedSeconds { get; set; }
+    public long? StatementId { get; set; }
+    public BillingStatement? Statement { get; set; }
     public byte[] RowVersion { get; set; } = [];
 }

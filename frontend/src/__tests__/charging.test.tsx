@@ -327,7 +327,7 @@ it("starts charging, displays server progress, and persists the stop summary", a
   );
   expect(await screen.findByText("Session summary")).toBeInTheDocument();
   expect(calls.stop).toHaveBeenCalledWith(9);
-  expect(screen.getByText("Payment: Unpaid")).toBeInTheDocument();
+  expect(screen.getByText("Payment: On monthly statement")).toBeInTheDocument();
   expect(screen.getByText("250.00 BDT")).toBeInTheDocument();
 });
 it("shows booking API conflicts and retains the key for an uncertain retry", async () => {

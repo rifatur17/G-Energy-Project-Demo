@@ -88,9 +88,25 @@ dotnet run --project backend/GEnergy.Api -- --seed-discovery
 
 The command uses the configured SQL Server, is repeatable and does not run in Production. Discovery starts at a selectable demo origin; browser location is optional and requested only by a user click. The map has a list fallback. All distances are approximate straight-line values and all battery data is simulated.
 
-Read [Member 2 API / shared integration contract](docs/member2-api.md) and [Member 2 test evidence / limitations](docs/member2-verification.md) before adding bookings or Admin changes. Member 3 now supplies BookingActivityGuard and BookingAvailabilityProvider. Read [booking/charging APIs and Member 4 settlement contract](docs/member3-booking-charging.md) and [Member 3 verification](docs/member3-verification.md). The Bookings & charging navigation connects reservations, the three-minute countdown, simulated charging and history. Member 4 now provides [demo wallets, top-ups, session settlement and refunds](docs/member4-wallet-payment.md). Owners access Wallet in navigation; Drivers continue charging while the Owner pays. All money movements are simulated. See [Member 4 verification](docs/member4-verification.md).
+Read [Member 2 API / shared integration contract](docs/member2-api.md) and [Member 2 test evidence / limitations](docs/member2-verification.md) before adding bookings or Admin changes. Member 3 now supplies BookingActivityGuard and BookingAvailabilityProvider. Read [booking/charging APIs and Member 4 settlement contract](docs/member3-booking-charging.md) and [Member 3 verification](docs/member3-verification.md). The Bookings & charging navigation connects reservations, the three-minute countdown, simulated charging and history. Member 4 now provides [demo wallets, top-ups, session settlement and refunds](docs/member4-wallet-payment.md). The original demo wallet API remains for existing data and its tests, but the app no longer settles charging through it (see Postpaid billing below). See [Member 4 verification](docs/member4-verification.md).
 
 Active reservations offer **Start live directions** inside G Energy. After browser location permission, a moving dot shows your device position, and a road route, distance, estimated drive time (without live traffic), and available road names appear on the map. Use HTTPS or localhost. The opt-in shares location and destination coordinates with the public [FOSSGIS / OSRM routing service](https://routing.openstreetmap.de/about.html), which logs route requests; G Energy keeps location only in the current view. Tracking ends when stopped, the card is left, or the reservation expires. Use a dedicated routing service for higher-volume deployments. Demo pins are sample locations; directions do not extend the three-minute hold.
+
+## Postpaid billing and SSLCommerz checkout
+
+Following the G-charge PRD (no stored-value wallet; BILL-02, PAY-02, PAY-04), charging is postpaid. A completed session is marked `Unpaid` with the note "Postpaid: added to your next monthly statement." Nothing is debited at the charger. Owners open **Billing** to see charges not yet billed, issue a statement (a demo button; production issues on the 1st of each month), and pay it through an SSLCommerz hosted checkout where the customer picks bKash, Nagad, cards or internet banking. G Energy never receives card numbers or PINs.
+
+- A statement collects every unbilled completed session plus the owner plan fee: Tk 200 per car per month after three free months, charged once per month. Personal statements fall due 7 days after issue. Repeating the month close with nothing new issues nothing.
+- Checkout creates a `StatementPayment` with a unique `tran_id`. SSLCommerz returns the browser to `/api/payments/sslcommerz/success|fail|cancel`, and `/ipn` accepts server notifications when the API is public. A success is applied only after the gateway validation API confirms the same `tran_id`, amount and BDT currency. A filtered unique index allows one paid payment per statement, so repeated callbacks never double-apply. Paid statements mark their sessions `Paid` with the transaction reference.
+- Without credentials the API serves a clearly labelled demo checkout at `/api/payments/sslcommerz-demo/{tranId}` that follows the same redirect → callback → validation steps. No money moves.
+- To use the real SSLCommerz sandbox, register a sandbox store at developer.sslcommerz.com and keep the credentials in user secrets, never in Git:
+
+```powershell
+dotnet user-secrets set 'SslCommerz:StoreId' '<sandbox store id>' --project backend/GEnergy.Api
+dotnet user-secrets set 'SslCommerz:StorePassword' '<sandbox store password>' --project backend/GEnergy.Api
+```
+
+`SslCommerz:Sandbox` (default `true`), `SslCommerz:PublicApiBaseUrl` (default `http://localhost:5080`) and `SslCommerz:FrontendBaseUrl` (default `http://localhost:5173`) set the gateway host and callback URLs. `Billing:DueDays`, `Billing:PlanFeePerVehicle`, `Billing:FreeMonths` and `Billing:AllowDemoMonthClose` tune the statement rules. Apply the additive `AddPostpaidStatements` migration before starting the API.
 
 ## Admin operations
 

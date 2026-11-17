@@ -1032,3 +1032,104 @@ code {
     grid-template-columns: 1fr;
   }
 }
+.billing-overview {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.2rem;
+  margin: 2rem 0;
+}
+.billing-stat > strong {
+  display: block;
+  font-size: clamp(1.8rem, 4vw, 2.6rem);
+  color: #07533c;
+  margin: 0.6rem 0 0.2rem;
+  font-variant-numeric: tabular-nums;
+}
+.billing-stat small {
+  font-size: 0.9rem;
+  color: #5b7969;
+  font-weight: 500;
+}
+.billing-stat:first-child {
+  background: #eaf4eb;
+}
+.statement-list {
+  display: grid;
+  gap: 1rem;
+  margin: 1rem 0 2rem;
+}
+.statement-card .card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.8rem;
+}
+.statement-card.status-overdue {
+  border-color: #e7b0a6;
+}
+.statement-card.status-paid .pill {
+  background: #e3f3e8;
+  color: #0a6b45;
+}
+.statement-card.status-overdue .pill {
+  background: #fbe7e3;
+  color: #9b2c1c;
+}
+.statement-actions {
+  display: flex;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.statement-detail {
+  border-top: 1px solid #dae7de;
+  margin-top: 1.2rem;
+  padding-top: 1rem;
+}
+.statement-detail h3 {
+  font-size: 15px;
+  margin: 1.2rem 0 0.4rem;
+}
+.payment-attempts {
+  margin: 0;
+  padding-left: 1.2rem;
+  font-size: 13px;
+  line-height: 1.8;
+}
+.table-scroll {
+  overflow-x: auto;
+  margin: 0.6rem 0 1.4rem;
+}
+.billing-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.billing-table th,
+.billing-table td {
+  text-align: left;
+  padding: 0.6rem 0.7rem;
+  border-bottom: 1px solid #e2e8e2;
+  white-space: nowrap;
+}
+.billing-table th {
+  font-size: 11px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: #5b7969;
+}
+.billing-table td:last-child,
+.billing-table th:last-child {
+  text-align: right;
+}
+@media (max-width: 800px) {
+  .billing-overview {
+    grid-template-columns: 1fr;
+  }
+  .billing-page .page-heading {
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+}

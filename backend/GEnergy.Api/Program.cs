@@ -2,6 +2,7 @@ using System.Text;
 using GEnergy.Api.Services.Email;
 using GEnergy.Api.Services.Admin;
 using GEnergy.Api.Services.Wallets;
+using GEnergy.Api.Services.Billing;
 using GEnergy.Api.Services.Charging;
 using System.Threading.RateLimiting;
 using GEnergy.Api.Authorization;
@@ -35,7 +36,18 @@ builder.Services.AddOptions<WalletOptions>().BindConfiguration("Wallet")
     .Validate(o => o.MaxTransactionAmount > 0 && o.MaxTransactionAmount <= 1000000 && o.MaxBalance >= o.MaxTransactionAmount && o.MaxBalance <= 10000000 && decimal.Round(o.MaxTransactionAmount,2)==o.MaxTransactionAmount && decimal.Round(o.MaxBalance,2)==o.MaxBalance,"Invalid demo wallet limits.").ValidateOnStart();
     builder.Services.AddScoped<IPaymentProvider, MockPaymentProvider>();
     builder.Services.AddScoped<WalletService>();
-    builder.Services.AddScoped<IChargingSettlement, WalletChargingSettlement>();
+// PRD: no stored-value wallet. Charging is postpaid and collected on monthly statements through
+// SSLCommerz. The legacy demo wallet API stays available for existing data and its own tests.
+builder.Services.AddOptions<BillingOptions>().BindConfiguration("Billing")
+    .Validate(o => o.DueDays is >= 1 and <= 60 && o.PlanFeePerVehicle >= 0 && o.FreeMonths is >= 0 and <= 24, "Invalid billing configuration.").ValidateOnStart();
+builder.Services.AddOptions<SslCommerzOptions>().BindConfiguration("SslCommerz")
+    .Validate(o => Uri.TryCreate(o.PublicApiBaseUrl, UriKind.Absolute, out _) && Uri.TryCreate(o.FrontendBaseUrl, UriKind.Absolute, out _), "Configure absolute SslCommerz callback base URLs.").ValidateOnStart();
+builder.Services.AddHttpClient<SslCommerzGateway>(c => c.Timeout = TimeSpan.FromSeconds(20));
+builder.Services.AddScoped<DemoSslCommerzGateway>();
+builder.Services.AddScoped<IPaymentGateway>(sp => sp.GetRequiredService<IOptions<SslCommerzOptions>>().Value.UseLiveGateway
+    ? sp.GetRequiredService<SslCommerzGateway>() : sp.GetRequiredService<DemoSslCommerzGateway>());
+builder.Services.AddScoped<BillingService>();
+builder.Services.AddScoped<IChargingSettlement, PostpaidChargingSettlement>();
 builder.Services.AddHostedService<ChargingWorker>();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(o =>

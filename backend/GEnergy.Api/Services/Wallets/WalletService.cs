@@ -88,6 +88,7 @@ public sealed class WalletService(EnergyDbContext db, TimeProvider clock, IOptio
     public async Task<WalletOperationResponse> Pay(long user, long sessionId, CancellationToken ct)
     {
         var locked = await LockSession(sessionId, user, ct); await using var scope = locked.Scope;
+        if (locked.Session.StatementId is not null) throw Conflict("This session is billed on a monthly statement. Pay the statement from Billing.");
         var result = await SettleWithinTransaction(sessionId, ct); if (result.PaymentStatus != "Paid") throw Conflict(result.Note);
         var t = await db.WalletTransactions.SingleAsync(t => t.ChargingSessionId == sessionId && t.Type == "ChargingPayment", ct); var w = await db.Wallets.SingleAsync(w => w.Id == t.WalletId, ct);
         await db.SaveChangesAsync(ct); await scope.CommitAsync(ct); return new(await Dto(t, ct), w.Balance, "BDT");

@@ -12,6 +12,7 @@ import { Dashboard } from "./pages/Dashboard";
 import { Bookings } from "./pages/Bookings";
 import { ChargingSession } from "./pages/ChargingSession";
 import { Wallet } from "./pages/Wallet";
+import { Billing } from "./pages/Billing";
 import { AdminDashboard } from "./pages/AdminDashboard";
 import { AdminNetwork } from "./pages/AdminNetwork";
 import { AdminMonitor } from "./pages/AdminMonitor";
@@ -65,6 +66,7 @@ export default function App() {
           ))}
         </Route>
         <Route element={<Protected role="CarOwner" />}>
+          <Route path="billing" element={<Billing />} />
           <Route path="wallet" element={<Wallet />} />
         </Route>
         <Route element={<Protected roles={["CarOwner", "CarDriver"]} />}>

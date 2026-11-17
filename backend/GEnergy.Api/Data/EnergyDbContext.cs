@@ -14,6 +14,8 @@ public sealed class EnergyDbContext(DbContextOptions<EnergyDbContext> options) :
     public DbSet<Wallet> Wallets => Set<Wallet>();
     public DbSet<WalletTransaction> WalletTransactions => Set<WalletTransaction>();
     public DbSet<WelcomeEmail> WelcomeEmails => Set<WelcomeEmail>();
+    public DbSet<BillingStatement> BillingStatements => Set<BillingStatement>();
+    public DbSet<StatementPayment> StatementPayments => Set<StatementPayment>();
     private void ProtectLedger()
     {
         if (ChangeTracker.Entries<WalletTransaction>().Any(e => e.State is EntityState.Modified or EntityState.Deleted))
@@ -26,6 +28,7 @@ public sealed class EnergyDbContext(DbContextOptions<EnergyDbContext> options) :
         model.ConfigureMobility();
         model.ConfigureCharging();
         model.ConfigureWallet();
+        model.ConfigureBilling();
         var mail = model.Entity<WelcomeEmail>();
         mail.HasKey(e => e.Id);
         mail.HasIndex(e => e.UserId).IsUnique();
