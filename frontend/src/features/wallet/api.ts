@@ -31,6 +31,24 @@ export interface WalletOperation {
   balance: number;
   currency: string;
 }
+export interface TopUpCheckout {
+  tranId: string;
+  redirectUrl: string;
+  gateway: string;
+  amount: number;
+  currency: string;
+}
+export interface TopUpAttempt {
+  id: number;
+  tranId: string;
+  gateway: string;
+  amount: number;
+  status: "Initiated" | "Paid" | "Failed" | "Cancelled";
+  method: string | null;
+  failureReason: string | null;
+  createdAtUtc: string;
+  completedAtUtc: string | null;
+}
 export function useWalletApi() {
   const { accessToken, logout } = useAuth();
   const logoutRef = useRef(logout);
@@ -63,13 +81,10 @@ export function useWalletApi() {
         call<WalletTransaction[]>(
           `/api/wallet/transactions?take=20${before ? `&before=${before}` : ""}`,
         ),
-      topUp: (amount: number, outcome: string, key: string) =>
-        call<WalletOperation>(
-          "/api/wallet/top-up",
-          "POST",
-          { amount, outcome },
-          key,
-        ),
+      /** Opens an SSLCommerz checkout; the wallet is credited after the gateway confirms. */
+      topUpCheckout: (amount: number) =>
+        call<TopUpCheckout>("/api/wallet/top-up/checkout", "POST", { amount }),
+      topUps: () => call<TopUpAttempt[]>("/api/wallet/top-ups"),
       pay: (id: number) =>
         call<WalletOperation>(`/api/charging-sessions/${id}/pay`, "POST"),
       refund: (id: number) =>

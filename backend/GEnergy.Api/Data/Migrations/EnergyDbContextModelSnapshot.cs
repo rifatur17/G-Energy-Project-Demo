@@ -699,6 +699,95 @@ namespace GEnergy.Api.Data.Migrations
                         });
                 });
 
+            modelBuilder.Entity("GEnergy.Api.Entities.WalletTopUpPayment", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("BankTranId")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<string>("CardType")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime?>("CompletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(3)");
+
+                    b.Property<string>("FailureReason")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Gateway")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(24)");
+
+                    b.Property<long>("OwnerUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(16)");
+
+                    b.Property<string>("TranId")
+                        .IsRequired()
+                        .HasMaxLength(48)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(48)");
+
+                    b.Property<string>("ValId")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<long?>("WalletTransactionId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TranId")
+                        .IsUnique();
+
+                    b.HasIndex("WalletTransactionId")
+                        .IsUnique()
+                        .HasFilter("[WalletTransactionId] IS NOT NULL");
+
+                    b.HasIndex("OwnerUserId", "CreatedAtUtc");
+
+                    b.ToTable("WalletTopUpPayments", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_WalletTopUpPayments_Amount", "[Amount] > 0 AND [Currency] = 'BDT'");
+
+                            t.HasCheckConstraint("CK_WalletTopUpPayments_Status", "[Status] IN ('Initiated','Paid','Failed','Cancelled') AND ([Status] <> 'Paid' OR [WalletTransactionId] IS NOT NULL)");
+                        });
+                });
+
             modelBuilder.Entity("GEnergy.Api.Entities.WalletTransaction", b =>
                 {
                     b.Property<long>("Id")
@@ -982,6 +1071,22 @@ namespace GEnergy.Api.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("GEnergy.Api.Entities.WalletTopUpPayment", b =>
+                {
+                    b.HasOne("GEnergy.Api.Entities.User", "Owner")
+                        .WithMany()
+                        .HasForeignKey("OwnerUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("GEnergy.Api.Entities.WalletTransaction", null)
+                        .WithMany()
+                        .HasForeignKey("WalletTransactionId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Owner");
                 });
 
             modelBuilder.Entity("GEnergy.Api.Entities.WalletTransaction", b =>

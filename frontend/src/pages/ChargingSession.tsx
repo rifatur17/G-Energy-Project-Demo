@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useChargingApi, type Session } from "../features/charging/api";
 import { useAuth } from "../features/auth/AuthContext";
+import { SessionPayment } from "../features/wallet/SessionPayment";
 export function ChargingSession() {
   const { user } = useAuth();
   const api = useChargingApi(),
@@ -162,6 +163,17 @@ export function ChargingSession() {
                 </p>
               </>
             )}
+            <SessionPayment
+              session={session}
+              onPaid={(reference) =>
+                setSession({
+                  ...session,
+                  paymentStatus: "Paid",
+                  paymentReference: reference,
+                  settlementNote: "Paid from the Owner wallet.",
+                })
+              }
+            />
             {session.paymentReference && (
               <p className="transaction-reference">
                 Payment reference: {session.paymentReference}
@@ -173,15 +185,15 @@ export function ChargingSession() {
                 {session.paymentStatus === "Paid"
                   ? "Paid"
                   : session.status === "Active"
-                    ? "Billed after charging"
-                    : "On monthly statement"}
+                    ? "From wallet when charging stops"
+                    : "Unpaid"}
               </strong>{" "}
               · {session.settlementNote}
               {session.settlementNote.endsWith(".") ? "" : "."}{" "}
               {session.paymentStatus === "Unpaid" &&
                 user?.role === "CarOwner" &&
                 session.status === "Completed" && (
-                  <Link to="/billing">View billing ↗</Link>
+                  <Link to="/billing">Monthly statement ↗</Link>
                 )}
             </p>
           </article>

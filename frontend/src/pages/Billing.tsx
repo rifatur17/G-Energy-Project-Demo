@@ -121,9 +121,10 @@ export function Billing() {
           <div className="eyebrow muted">POSTPAID BILLING · BDT</div>
           <h1>Charge now, pay one statement.</h1>
           <p className="subtitle">
-            You and your drivers charge first. Every session is added to your
-            monthly statement, which you pay through SSLCommerz with bKash,
-            Nagad, cards or internet banking. G Energy never holds your money.
+            Charging is paid from your wallet automatically. Anything the wallet
+            could not cover, plus the owner plan fee, is collected on one
+            monthly statement that you pay through SSLCommerz with bKash, Nagad,
+            cards or internet banking.
           </p>
         </div>
         <Link className="secondary" to="/bookings">

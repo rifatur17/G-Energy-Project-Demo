@@ -45,6 +45,25 @@ public static class BillingConfiguration
         p.HasIndex(x => new { x.OwnerUserId, x.CreatedAtUtc });
         p.HasOne(x => x.Statement).WithMany().HasForeignKey(x => x.StatementId).OnDelete(DeleteBehavior.Restrict);
 
+        var w = model.Entity<WalletTopUpPayment>();
+        w.ToTable("WalletTopUpPayments", t =>
+        {
+            t.HasCheckConstraint("CK_WalletTopUpPayments_Status", "[Status] IN ('Initiated','Paid','Failed','Cancelled') AND ([Status] <> 'Paid' OR [WalletTransactionId] IS NOT NULL)");
+            t.HasCheckConstraint("CK_WalletTopUpPayments_Amount", "[Amount] > 0 AND [Currency] = 'BDT'");
+        });
+        w.Property(x => x.TranId).HasMaxLength(48).IsUnicode(false).IsRequired(); w.HasIndex(x => x.TranId).IsUnique();
+        w.Property(x => x.Gateway).HasMaxLength(24).IsUnicode(false).IsRequired();
+        w.Property(x => x.Currency).HasMaxLength(3).IsUnicode(false).IsRequired();
+        w.Property(x => x.Status).HasMaxLength(16).IsUnicode(false).IsRequired();
+        w.Property(x => x.Amount).HasPrecision(18, 2);
+        w.Property(x => x.ValId).HasMaxLength(64); w.Property(x => x.BankTranId).HasMaxLength(80); w.Property(x => x.CardType).HasMaxLength(50); w.Property(x => x.FailureReason).HasMaxLength(200);
+        w.Property(x => x.RowVersion).IsRowVersion();
+        Utc(w.Property(x => x.CreatedAtUtc)); Utc(w.Property(x => x.CompletedAtUtc));
+        w.HasIndex(x => x.WalletTransactionId).IsUnique().HasFilter("[WalletTransactionId] IS NOT NULL");
+        w.HasIndex(x => new { x.OwnerUserId, x.CreatedAtUtc });
+        w.HasOne(x => x.Owner).WithMany().HasForeignKey(x => x.OwnerUserId).OnDelete(DeleteBehavior.Restrict);
+        w.HasOne<WalletTransaction>().WithMany().HasForeignKey(x => x.WalletTransactionId).OnDelete(DeleteBehavior.Restrict);
+
         var s = model.Entity<ChargingSession>();
         s.HasOne(x => x.Statement).WithMany().HasForeignKey(x => x.StatementId).OnDelete(DeleteBehavior.Restrict);
         s.HasIndex(x => new { x.PayerOwnerUserId, x.StatementId, x.Status });

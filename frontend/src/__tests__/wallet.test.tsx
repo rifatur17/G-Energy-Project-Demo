@@ -54,13 +54,15 @@ const session = {
 const calls = {
   wallet: vi.fn(),
   transactions: vi.fn(),
-  topUp: vi.fn(),
+  topUpCheckout: vi.fn(),
+  topUps: vi.fn(),
   pay: vi.fn(),
   refund: vi.fn(),
 };
-function page() {
+const assign = vi.fn();
+function page(url = "/wallet") {
   return render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={[url]}>
       <Wallet />
     </MemoryRouter>,
   );
@@ -71,10 +73,17 @@ beforeEach(() => {
   auth.user = { id: 1, role: "CarOwner" };
   calls.wallet.mockResolvedValue(wallet);
   calls.transactions.mockResolvedValue([]);
-  calls.topUp.mockResolvedValue({
-    transaction: tx,
-    balance: 1000,
+  calls.topUps.mockResolvedValue([]);
+  calls.topUpCheckout.mockResolvedValue({
+    tranId: "GWABC",
+    redirectUrl: "http://localhost:5080/api/payments/sslcommerz-demo/GWABC",
+    gateway: "SSLCommerzDemo",
+    amount: 1000,
     currency: "BDT",
+  });
+  Object.defineProperty(window, "location", {
+    configurable: true,
+    value: { ...window.location, assign },
   });
   calls.pay.mockResolvedValue({
     transaction: { ...tx, type: "ChargingPayment", amount: 250 },
@@ -96,81 +105,62 @@ it("loads the real API wallet and renders empty history with demo warning", asyn
     await screen.findByLabelText("Available wallet balance"),
   ).toHaveTextContent("1000.00 BDT");
   expect(screen.getByText(/No transactions yet/)).toBeInTheDocument();
-  expect(screen.getByText(/Never enter card/)).toBeInTheDocument();
+  expect(screen.getByText(/Never enter real card numbers/)).toBeInTheDocument();
   expect(calls.wallet).toHaveBeenCalledTimes(1);
 });
-it("rejects invalid top-up amounts before any API payment", async () => {
+it("rejects invalid top-up amounts before opening a checkout", async () => {
   page();
   await screen.findByLabelText("Amount (BDT)");
   fireEvent.change(screen.getByLabelText("Amount (BDT)"), {
     target: { value: "-1" },
   });
-  fireEvent.click(screen.getByRole("button", { name: "Add simulated funds" }));
+  fireEvent.click(
+    screen.getByRole("button", { name: "Add money with SSLCommerz" }),
+  );
   expect(await screen.findByRole("alert")).toHaveTextContent("positive amount");
-  expect(calls.topUp).not.toHaveBeenCalled();
+  expect(calls.topUpCheckout).not.toHaveBeenCalled();
 });
-it("successful top-up refreshes balance and the persisted transaction reference", async () => {
+it("top-up opens the SSLCommerz checkout instead of adding money directly", async () => {
   const user = userEvent.setup();
   page();
   await user.type(await screen.findByLabelText("Amount (BDT)"), "1000");
-  calls.transactions.mockResolvedValue([tx]);
-  await user.click(screen.getByRole("button", { name: "Add simulated funds" }));
-  expect(await screen.findByRole("status")).toHaveTextContent(
-    "No real money transferred",
+  await user.click(
+    screen.getByRole("button", { name: "Add money with SSLCommerz" }),
   );
-  expect(calls.topUp).toHaveBeenCalledWith(1000, "Success", expect.any(String));
-  expect(await screen.findByText(/WT-DEMO-10 ·/)).toBeInTheDocument();
-  expect(calls.wallet).toHaveBeenCalledTimes(2);
+  await waitFor(() =>
+    expect(assign).toHaveBeenCalledWith(
+      "http://localhost:5080/api/payments/sslcommerz-demo/GWABC",
+    ),
+  );
+  expect(calls.topUpCheckout).toHaveBeenCalledWith(1000);
+  expect(screen.queryByLabelText(/Simulated payment outcome/)).toBeNull();
 });
-it("mock failure displays failed status without claiming a credit", async () => {
-  const user = userEvent.setup();
-  calls.topUp.mockResolvedValue({
-    transaction: {
-      ...tx,
+it("reports the checkout result and lists recent top-up attempts", async () => {
+  calls.topUps.mockResolvedValue([
+    {
+      id: 3,
+      tranId: "GWXYZ",
+      gateway: "SSLCommerzDemo",
+      amount: 500,
       status: "Failed",
-      description: "Simulated payment failed; no credit applied.",
+      method: "BKASH-BKash",
+      failureReason:
+        "Payment service is not available at the moment (demo checkout).",
+      createdAtUtc: now,
+      completedAtUtc: now,
     },
-    balance: 1000,
-    currency: "BDT",
-  });
-  calls.transactions.mockResolvedValue([{ ...tx, status: "Failed" }]);
-  page();
-  await user.type(await screen.findByLabelText("Amount (BDT)"), "100");
-  await user.selectOptions(
-    screen.getByLabelText("Simulated payment outcome"),
-    "Failure",
-  );
-  await user.click(screen.getByRole("button", { name: "Add simulated funds" }));
+  ]);
+  page("/wallet?topup=unavailable");
   expect(await screen.findByRole("alert")).toHaveTextContent(
-    "no credit applied",
+    "This payment service is not available at the moment",
   );
-  expect(screen.getByText("Failed")).toBeInTheDocument();
-  expect(screen.getByLabelText("Available wallet balance")).toHaveTextContent(
-    "1000.00",
+  expect(await screen.findByText(/GWXYZ/)).toBeInTheDocument();
+  expect(screen.getByText(/SSLCommerz \(demo\) · bKash/)).toBeInTheDocument();
+  cleanup();
+  page("/wallet?topup=paid");
+  expect(await screen.findByRole("status")).toHaveTextContent(
+    "added to your wallet",
   );
-});
-it("pending top-up disables duplicates and an uncertain retry keeps the same key", async () => {
-  let reject!: (error: Error) => void;
-  calls.topUp.mockReturnValueOnce(
-    new Promise((_, r) => {
-      reject = r;
-    }),
-  );
-  page();
-  fireEvent.change(await screen.findByLabelText("Amount (BDT)"), {
-    target: { value: "1000" },
-  });
-  fireEvent.click(screen.getByRole("button", { name: "Add simulated funds" }));
-  expect(
-    await screen.findByRole("button", { name: "Processing…" }),
-  ).toBeDisabled();
-  fireEvent.click(screen.getByRole("button", { name: "Processing…" }));
-  expect(calls.topUp).toHaveBeenCalledTimes(1);
-  reject(new Error("Network outcome uncertain"));
-  await screen.findByRole("alert");
-  fireEvent.click(screen.getByRole("button", { name: "Add simulated funds" }));
-  await waitFor(() => expect(calls.topUp).toHaveBeenCalledTimes(2));
-  expect(calls.topUp.mock.calls[0][2]).toBe(calls.topUp.mock.calls[1][2]);
 });
 it("history displays an eligible full refund and retains original reference", async () => {
   const payment = {
@@ -201,12 +191,12 @@ it("insufficient wallet balance stays unpaid and provides a top-up link", async 
       <SessionPayment session={session} onPaid={onPaid} />
     </MemoryRouter>,
   );
-  fireEvent.click(screen.getByRole("button", { name: "Pay from demo wallet" }));
+  fireEvent.click(screen.getByRole("button", { name: "Pay from wallet" }));
   expect(await screen.findByRole("alert")).toHaveTextContent(
     "Insufficient wallet balance",
   );
   expect(
-    screen.getByRole("link", { name: "Check balance / add demo funds ↗" }),
+    screen.getByRole("link", { name: "Check balance / add money ↗" }),
   ).toHaveAttribute("href", "/wallet");
   expect(onPaid).not.toHaveBeenCalled();
 });
@@ -217,7 +207,7 @@ it("successful settlement uses only session ID and reports the payment reference
       <SessionPayment session={session} onPaid={onPaid} />
     </MemoryRouter>,
   );
-  fireEvent.click(screen.getByRole("button", { name: "Pay from demo wallet" }));
+  fireEvent.click(screen.getByRole("button", { name: "Pay from wallet" }));
   await waitFor(() => expect(onPaid).toHaveBeenCalledWith("WT-DEMO-10"));
   expect(calls.pay).toHaveBeenCalledWith(9);
 });
@@ -238,20 +228,4 @@ it("already-paid sessions and Drivers cannot offer a wallet debit", () => {
     </MemoryRouter>,
   );
   expect(screen.queryByRole("button")).not.toBeInTheDocument();
-});
-
-it("refresh restores an uncertain top-up with the same wallet-scoped key", async () => {
-  sessionStorage.setItem(
-    "g-energy-wallet-pending-1",
-    JSON.stringify({ amount: "125", outcome: "Success", key: "persisted-key" }),
-  );
-  page();
-  expect(await screen.findByLabelText("Amount (BDT)")).toHaveValue(125);
-  fireEvent.click(screen.getByRole("button", { name: "Add simulated funds" }));
-  await waitFor(() =>
-    expect(calls.topUp).toHaveBeenCalledWith(125, "Success", "persisted-key"),
-  );
-  await waitFor(() =>
-    expect(sessionStorage.getItem("g-energy-wallet-pending-1")).toBeNull(),
-  );
 });

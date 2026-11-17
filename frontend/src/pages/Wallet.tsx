@@ -1,86 +1,78 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import {
   useWalletApi,
+  type TopUpAttempt,
   type Wallet as WalletData,
   type WalletTransaction,
 } from "../features/wallet/api";
+import { methodLabel } from "../features/billing/api";
+const topUpResults: Record<
+  string,
+  { kind: "success" | "error"; text: string }
+> = {
+  paid: {
+    kind: "success",
+    text: "Payment confirmed by SSLCommerz. The money has been added to your wallet.",
+  },
+  unavailable: {
+    kind: "error",
+    text: "This payment service is not available at the moment. Nothing was charged and your balance is unchanged.",
+  },
+  failed: {
+    kind: "error",
+    text: "The payment failed at SSLCommerz. Nothing was charged; you can try again.",
+  },
+  cancelled: {
+    kind: "error",
+    text: "You cancelled the SSLCommerz checkout. Your balance is unchanged.",
+  },
+  unconfirmed: {
+    kind: "error",
+    text: "SSLCommerz did not confirm this payment, so nothing was added to your wallet.",
+  },
+};
 export function Wallet() {
   const api = useWalletApi();
+  const [params, setParams] = useSearchParams();
   const [wallet, setWallet] = useState<WalletData | null>(null),
     [rows, setRows] = useState<WalletTransaction[]>([]),
+    [attempts, setAttempts] = useState<TopUpAttempt[]>([]),
     [amount, setAmount] = useState(""),
-    [outcome, setOutcome] = useState("Success"),
     [busy, setBusy] = useState(false),
     [loading, setLoading] = useState(true),
     [error, setError] = useState(""),
     [message, setMessage] = useState(""),
     [more, setMore] = useState(false);
-  const key = useRef(crypto.randomUUID()),
-    submitting = useRef(false);
-  function storageKey(id: number) {
-    return `g-energy-wallet-pending-${id}`;
-  }
-  function pending(value?: { amount: string; outcome: string; key: string }) {
-    if (!wallet) return;
-    try {
-      if (value)
-        sessionStorage.setItem(storageKey(wallet.id), JSON.stringify(value));
-      else sessionStorage.removeItem(storageKey(wallet.id));
-    } catch {
-      /* In-memory retries remain available when browser storage is disabled. */
-    }
-  }
-  function changeDetails() {
-    key.current = crypto.randomUUID();
-    pending();
-  }
+  const submitting = useRef(false);
   const load = useCallback(async () => {
-    const [w, t] = await Promise.all([api.wallet(), api.transactions()]);
+    const [w, t, a] = await Promise.all([
+      api.wallet(),
+      api.transactions(),
+      api.topUps().catch(() => [] as TopUpAttempt[]),
+    ]);
     setWallet(w);
     setRows(t);
     setMore(t.length === 20);
+    setAttempts(a);
   }, [api]);
   useEffect(() => {
     let active = true;
-    Promise.all([api.wallet(), api.transactions()])
-      .then(([w, t]) => {
-        if (active) {
-          setWallet(w);
-          setRows(t);
-          setMore(t.length === 20);
-          try {
-            const saved = JSON.parse(
-              sessionStorage.getItem(storageKey(w.id)) ?? "null",
-            );
-            if (
-              saved &&
-              typeof saved.key === "string" &&
-              typeof saved.amount === "string" &&
-              ["Success", "Failure"].includes(saved.outcome)
-            ) {
-              key.current = saved.key;
-              setAmount(saved.amount);
-              setOutcome(saved.outcome);
-              setMessage(
-                "An earlier top-up result was uncertain. Check history or retry these details safely with the same reference.",
-              );
-            }
-          } catch {
-            /* Ignore unavailable or malformed local retry state. */
-          }
-        }
-      })
-      .catch((e) => {
-        if (active) setError(e.message);
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
+    load()
+      .catch((e) => active && setError(e.message))
+      .finally(() => active && setLoading(false));
     return () => {
       active = false;
     };
-  }, [api]);
+  }, [load]);
+  useEffect(() => {
+    const result = params.get("topup");
+    if (!result) return;
+    const known = topUpResults[result];
+    if (known?.kind === "success") setMessage(known.text);
+    else setError(known?.text ?? "Top-up result is unknown.");
+    setParams({}, { replace: true });
+  }, [params, setParams]);
   async function topUp(e: React.FormEvent) {
     e.preventDefault();
     if (submitting.current) return;
@@ -101,21 +93,12 @@ export function Wallet() {
     }
     submitting.current = true;
     setBusy(true);
-    pending({ amount, outcome, key: key.current });
     try {
-      const result = await api.topUp(value, outcome, key.current);
-      pending();
-      key.current = crypto.randomUUID();
-      if (result.transaction.status === "Failed")
-        setError(result.transaction.description);
-      else
-        setMessage(
-          `Demo top-up completed: ${result.transaction.reference}. No real money transferred.`,
-        );
-      await load();
+      const checkout = await api.topUpCheckout(value);
+      setMessage("Opening SSLCommerz secure checkout…");
+      window.location.assign(checkout.redirectUrl);
     } catch (e) {
       setError((e as Error).message);
-    } finally {
       submitting.current = false;
       setBusy(false);
     }
@@ -159,11 +142,11 @@ export function Wallet() {
     <section className="mobility-page wallet-page">
       <div className="page-heading">
         <div>
-          <div className="eyebrow muted">DEMO WALLET · BDT</div>
+          <div className="eyebrow muted">OWNER WALLET · BDT</div>
           <h1>A balance for your next journey.</h1>
           <p className="subtitle">
-            Simulated payments only. Never enter card, banking, PIN or mobile
-            payment credentials.
+            Add money through SSLCommerz with bKash, Nagad, cards or internet
+            banking. Charging is paid from this balance automatically.
           </p>
         </div>
         <Link className="secondary" to="/bookings">
@@ -196,19 +179,20 @@ export function Wallet() {
         <>
           <div className="wallet-overview">
             <section className="panel wallet-balance">
-              <span className="pill">SIMULATED FUNDS</span>
+              <span className="pill">WALLET BALANCE</span>
               <h2>Available balance</h2>
               <strong aria-label="Available wallet balance">
                 {wallet.balance.toFixed(2)} <small>BDT</small>
               </strong>
               <p>
-                Completed charging bills are paid automatically at stop when
-                funds are available. Unpaid bills can be paid from their session
-                page.
+                Charging bills are paid automatically when charging stops. If
+                the balance is too low, the bill stays unpaid: pay it from the
+                session page after adding money, or it goes on your monthly{" "}
+                <Link to="/billing">statement</Link>.
               </p>
             </section>
             <form className="panel" onSubmit={topUp} noValidate>
-              <h2>Add demo funds</h2>
+              <h2>Add money</h2>
               <label htmlFor="topup-amount">Amount (BDT)</label>
               <input
                 id="topup-amount"
@@ -219,33 +203,40 @@ export function Wallet() {
                 max={wallet.maxTransactionAmount}
                 value={amount}
                 disabled={busy}
-                onChange={(e) => {
-                  changeDetails();
-                  setAmount(e.target.value);
-                }}
+                onChange={(e) => setAmount(e.target.value)}
               />
               <p className="hint">
-                Up to {wallet.maxTransactionAmount.toFixed(2)} BDT per
-                transaction. Wallet limit {wallet.maxBalance.toFixed(2)} BDT.
+                Up to {wallet.maxTransactionAmount.toFixed(2)} BDT per top-up.
+                Wallet limit {wallet.maxBalance.toFixed(2)} BDT. You choose
+                bKash, Nagad, a card or internet banking on the SSLCommerz page.
               </p>
-              <label htmlFor="mock-outcome">Simulated payment outcome</label>
-              <select
-                id="mock-outcome"
-                value={outcome}
-                disabled={busy}
-                onChange={(e) => {
-                  changeDetails();
-                  setOutcome(e.target.value);
-                }}
-              >
-                <option value="Success">Demo success</option>
-                <option value="Failure">Demo failure</option>
-              </select>
               <button className="primary compact" disabled={busy}>
-                {busy ? "Processing…" : "Add simulated funds"}
+                {busy ? "Opening checkout…" : "Add money with SSLCommerz"}
               </button>
+              <p className="hint">
+                Demo: no real money moves. Never enter real card numbers or
+                PINs.
+              </p>
             </form>
           </div>
+          {attempts.length > 0 && (
+            <>
+              <h2>Recent top-up attempts</h2>
+              <ul className="payment-attempts">
+                {attempts.map((a) => (
+                  <li key={a.id}>
+                    <strong>{a.status}</strong> · {a.amount.toFixed(2)} BDT ·{" "}
+                    {a.gateway === "SSLCommerzDemo"
+                      ? "SSLCommerz (demo)"
+                      : a.gateway}
+                    {a.method && ` · ${methodLabel(a.method)}`} ·{" "}
+                    <span className="transaction-reference">{a.tranId}</span>
+                    {a.failureReason && ` · ${a.failureReason}`}
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
           <div className="page-heading">
             <h2>Transaction history</h2>
             <button
@@ -261,8 +252,8 @@ export function Wallet() {
           </div>
           {rows.length === 0 ? (
             <div className="panel empty">
-              No transactions yet. Your demo top-ups, charging payments and
-              refunds will appear here.
+              No transactions yet. Your top-ups, charging payments and refunds
+              will appear here.
             </div>
           ) : (
             <div className="wallet-ledger">
@@ -273,7 +264,7 @@ export function Wallet() {
                       {t.type === "ChargingPayment"
                         ? "Charging payment"
                         : t.type === "TopUp"
-                          ? "Demo top-up"
+                          ? "Top-up"
                           : "Demo refund"}
                     </strong>
                     <span className="pill">{t.status}</span>

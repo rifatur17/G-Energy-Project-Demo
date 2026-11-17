@@ -45,6 +45,7 @@ public sealed class WalletService(EnergyDbContext db, TimeProvider clock, IOptio
     { var t = await db.WalletTransactions.AsNoTracking().SingleOrDefaultAsync(t => t.Id == id && t.Wallet.UserId == user, ct) ?? throw Missing(); return await Dto(t, ct); }
     public async Task<WalletOperationResponse> TopUp(long user, TopUpRequest request, string key, CancellationToken ct)
     {
+        if (!options.Value.AllowSimulatedTopUp) throw Conflict("Add money through the SSLCommerz checkout (POST /api/wallet/top-up/checkout).");
         Amount(request.Amount); if (string.IsNullOrWhiteSpace(key) || key.Length > 100) throw new ChargingException(400, "Provide an Idempotency-Key of 1–100 characters.");
         if (request.Outcome is not ("Success" or "Failure")) throw new ChargingException(400, "Choose a demo Success or Failure outcome.");
         await using var tx = await Begin(ct); var w = await LockWallet(user, ct); var scopedKey = "topup:" + key;
@@ -55,6 +56,24 @@ public sealed class WalletService(EnergyDbContext db, TimeProvider clock, IOptio
         var payment = await provider.PayAsync(new(t.Reference, t.Amount, request.Outcome), ct);
         t.Status = payment.Success ? "Completed" : "Failed"; t.Description = payment.Description; t.CompletedAtUtc = Now;
         if (payment.Success) Credit(w, t.Amount); db.WalletTransactions.Add(t); await db.SaveChangesAsync(ct); await Commit(tx, ct); return new(await Dto(t, ct), w.Balance, "BDT");
+    }
+    // Checks a top-up before opening a gateway checkout, so the customer is not sent to pay an amount
+    // the wallet could never accept.
+    public async Task ValidateTopUp(long user, decimal amount, CancellationToken ct)
+    {
+        Amount(amount);
+        var balance = await db.Wallets.AsNoTracking().Where(w => w.UserId == user).Select(w => (decimal?)w.Balance).SingleOrDefaultAsync(ct) ?? 0;
+        if (balance + amount > options.Value.MaxBalance) throw Conflict("The wallet balance limit would be exceeded.");
+    }
+    // Credits a gateway-confirmed top-up exactly once. Runs inside the caller's transaction.
+    public async Task<WalletTransaction> CreditGatewayTopUp(long user, decimal amount, string tranId, string gateway, CancellationToken ct)
+    {
+        var w = await LockWallet(user, ct); var key = "ssl:" + tranId;
+        var previous = await db.WalletTransactions.SingleOrDefaultAsync(t => t.WalletId == w.Id && t.IdempotencyKey == key, ct);
+        if (previous is not null) return previous;
+        var t = new WalletTransaction { WalletId = w.Id, Type = "TopUp", Status = "Completed", Amount = amount, IdempotencyKey = key, RequestedOutcome = "Gateway",
+            Description = $"Wallet top-up via {gateway} ({tranId}).", CreatedAtUtc = Now, CompletedAtUtc = Now };
+        Credit(w, amount); db.WalletTransactions.Add(t); await db.SaveChangesAsync(ct); return t;
     }
     // Member 3 calls this AFTER flushing Completed, inside its existing transaction.
     public async Task<SettlementResult> SettleWithinTransaction(long sessionId, CancellationToken ct)

@@ -12,4 +12,6 @@ public sealed record StatementResponse(long Id, string StatementNumber, string P
 }
 public sealed record StatementPaymentResponse(long Id, string TranId, string Gateway, decimal Amount, string Status, string? Method, string? BankTranId, string? FailureReason, DateTime CreatedAtUtc, DateTime? CompletedAtUtc);
 public sealed record StatementDetailResponse(StatementResponse Statement, IReadOnlyList<UnbilledSessionResponse> Lines, IReadOnlyList<StatementPaymentResponse> Payments);
+public sealed record TopUpCheckoutRequest([System.ComponentModel.DataAnnotations.Range(typeof(decimal), "0.01", "1000000")] decimal Amount);
+public sealed record TopUpAttemptResponse(long Id, string TranId, string Gateway, decimal Amount, string Status, string? Method, string? FailureReason, DateTime CreatedAtUtc, DateTime? CompletedAtUtc);
 public sealed record CheckoutResponse(string TranId, string RedirectUrl, string Gateway, decimal Amount, string Currency);

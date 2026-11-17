@@ -16,6 +16,7 @@ public sealed class EnergyDbContext(DbContextOptions<EnergyDbContext> options) :
     public DbSet<WelcomeEmail> WelcomeEmails => Set<WelcomeEmail>();
     public DbSet<BillingStatement> BillingStatements => Set<BillingStatement>();
     public DbSet<StatementPayment> StatementPayments => Set<StatementPayment>();
+    public DbSet<WalletTopUpPayment> WalletTopUpPayments => Set<WalletTopUpPayment>();
     private void ProtectLedger()
     {
         if (ChangeTracker.Entries<WalletTransaction>().Any(e => e.State is EntityState.Modified or EntityState.Deleted))

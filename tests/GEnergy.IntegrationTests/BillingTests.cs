@@ -202,3 +202,72 @@ public sealed class SslCommerzGatewayTests
         Assert.False((await Gateway(new Handler(_ => """{"status":"INVALID_TRANSACTION"}""")).ValidateAsync("x", default)).Valid);
     }
 }
+public sealed class WalletTopUpTests
+{
+    private static Task<ChargingScenario> Create(IPaymentGateway? gateway = null) => ChargingScenario.Create(configure: services =>
+    {
+        services.RemoveAll<IChargingSettlement>(); services.AddScoped<IChargingSettlement, GEnergy.Api.Services.Wallets.WalletChargingSettlement>();
+        if (gateway is not null) { services.RemoveAll<IPaymentGateway>(); services.AddSingleton(gateway); }
+    }, label: "TopUp");
+    private static async Task<CheckoutResponse> Checkout(ChargingScenario s, decimal amount)
+    { var r = await s.Client.PostAsJsonAsync("/api/wallet/top-up/checkout", new { amount }); Assert.Equal(HttpStatusCode.OK, r.StatusCode); return (await r.Content.ReadFromJsonAsync<CheckoutResponse>())!; }
+    private static async Task<decimal> Balance(ChargingScenario s) => (await s.Client.GetFromJsonAsync<WalletResponse>("/api/wallet"))!.Balance;
+
+    [Fact]
+    public async Task Demo_top_up_shows_service_unavailable_and_adds_nothing()
+    {
+        await using var s = await Create();
+        // The instant simulated top-up is off in the app; money goes in only through the checkout.
+        using (var legacy = new HttpRequestMessage(HttpMethod.Post, "/api/wallet/top-up") { Content = JsonContent.Create(new { amount = 500, outcome = "Success" }) })
+        { legacy.Headers.Add("Idempotency-Key", "k1"); Assert.Equal(HttpStatusCode.Conflict, (await s.Client.SendAsync(legacy)).StatusCode); }
+        var checkout = await Checkout(s, 500);
+        Assert.Equal("SSLCommerzDemo", checkout.Gateway); Assert.StartsWith("GW", checkout.TranId);
+        var browser = BillingFixture.Browser(s); var path = new Uri(checkout.RedirectUrl).PathAndQuery;
+        var page = await browser.GetStringAsync(path);
+        Assert.Contains("Wallet top-up", page); Assert.Contains("500.00", page); Assert.Contains("bKash", page); Assert.Contains("VISA", page);
+        var submit = await browser.PostAsync(path, new FormUrlEncodedContent(new Dictionary<string, string> { ["action"] = "pay", ["method"] = "VISA-Dutch Bangla" }));
+        var html = await submit.Content.ReadAsStringAsync();
+        Assert.Contains("This service is not available at the moment", html); Assert.Contains("http://localhost:5173/wallet?topup=unavailable", html);
+        Assert.Contains("topup=unconfirmed", (await browser.GetAsync($"/api/payments/sslcommerz/success?tran_id={checkout.TranId}&val_id=x")).Headers.Location!.ToString());
+        var cancelled = await Checkout(s, 200);
+        Assert.Equal("http://localhost:5173/wallet?topup=cancelled", (await browser.PostAsync(new Uri(cancelled.RedirectUrl).PathAndQuery, new FormUrlEncodedContent(new Dictionary<string, string> { ["action"] = "cancel" }))).Headers.Location is { } c
+            ? (await browser.GetAsync(c.PathAndQuery)).Headers.Location!.ToString() : "");
+        Assert.Equal(0m, await Balance(s));
+        var attempts = (await s.Client.GetFromJsonAsync<List<TopUpAttemptResponse>>("/api/wallet/top-ups"))!;
+        Assert.Equal(["Cancelled", "Failed"], attempts.Select(a => a.Status).ToArray());
+        Assert.Equal("VISA-Dutch Bangla", attempts[1].Method); Assert.Contains("not available", attempts[1].FailureReason);
+    }
+    [Fact]
+    public async Task Confirmed_top_up_credits_once_and_charging_is_paid_from_the_wallet()
+    {
+        var stub = new StubGateway();
+        await using var s = await Create(stub);
+        var browser = BillingFixture.Browser(s);
+        var checkout = await Checkout(s, 1000);
+        Assert.StartsWith("https://sandbox.sslcommerz.com/", checkout.RedirectUrl);
+        var success = $"/api/payments/sslcommerz/success?tran_id={checkout.TranId}&val_id={checkout.TranId}:1000.00";
+        Assert.Equal("http://localhost:5173/wallet?topup=paid", (await browser.GetAsync(success)).Headers.Location!.ToString());
+        Assert.Equal("http://localhost:5173/wallet?topup=paid", (await browser.GetAsync(success)).Headers.Location!.ToString()); // repeated callback
+        Assert.Equal(1000m, await Balance(s));
+        var ledger = (await s.Client.GetFromJsonAsync<List<WalletTransactionResponse>>("/api/wallet/transactions"))!;
+        var credit = Assert.Single(ledger); Assert.Equal("TopUp", credit.Type); Assert.Contains(checkout.TranId, credit.Description);
+
+        stub.AmountOverride = 5m; // gateway confirms a different amount: nothing is credited
+        var other = await Checkout(s, 300);
+        Assert.Contains("topup=unconfirmed", (await browser.GetAsync($"/api/payments/sslcommerz/success?tran_id={other.TranId}&val_id={other.TranId}:300")).Headers.Location!.ToString());
+        Assert.Equal(1000m, await Balance(s));
+
+        var active = await s.Start((await s.Book()).Id); s.Clock.Advance(10); var done = await s.Stop(active.Id);
+        Assert.Equal("Paid", done.PaymentStatus); Assert.Equal(750m, await Balance(s));
+    }
+    [Fact]
+    public async Task Top_up_checkout_validates_amount_and_role()
+    {
+        await using var s = await Create();
+        Assert.Equal(HttpStatusCode.BadRequest, (await s.Client.PostAsJsonAsync("/api/wallet/top-up/checkout", new { amount = 0 })).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await s.Client.PostAsJsonAsync("/api/wallet/top-up/checkout", new { amount = 12.345m })).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await s.Client.PostAsJsonAsync("/api/wallet/top-up/checkout", new { amount = 200000 })).StatusCode);
+        s.As(s.DriverToken);
+        Assert.Equal(HttpStatusCode.Forbidden, (await s.Client.PostAsJsonAsync("/api/wallet/top-up/checkout", new { amount = 100 })).StatusCode);
+    }
+}

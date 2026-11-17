@@ -18,7 +18,7 @@ public sealed class AdminScenario : IAsyncDisposable
     public ChargingScenario S = null!; public HttpClient Admin = null!;
     public static async Task<AdminScenario> Create(bool sql = false)
     {
-        var s = await ChargingScenario.Create(sql, configure: services => { services.RemoveAll<IChargingSettlement>(); services.AddScoped<IChargingSettlement, WalletChargingSettlement>(); }, label: "Member5");
+        var s = await ChargingScenario.Create(sql, configure: services => { services.RemoveAll<IChargingSettlement>(); services.AddScoped<IChargingSettlement, WalletChargingSettlement>(); services.Configure<GEnergy.Api.Services.Wallets.WalletOptions>(o => o.AllowSimulatedTopUp = true); }, label: "Member5");
         const string password = "Only-for-labelled-admin-QA-123";
         var email = $"member5-admin-{Guid.NewGuid():N}@example.test";
         var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["AdminSeed:Email"] = email, ["AdminSeed:Password"] = password }).Build();

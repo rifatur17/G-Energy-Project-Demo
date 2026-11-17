@@ -7,6 +7,9 @@ public sealed class WalletOptions
     public decimal MaxBalance { get; set; } = 1000000;
     public bool ForceMockFailure { get; set; }
     public bool AllowDemoRefunds { get; set; } = true;
+    // The app tops up wallets through the SSLCommerz checkout. The older instant "simulated outcome"
+    // top-up is kept for automated tests only and is off unless explicitly enabled.
+    public bool AllowSimulatedTopUp { get; set; }
 }
 public sealed record MockPaymentRequest(string Reference, decimal Amount, string Outcome);
 public sealed record MockPaymentResult(bool Success, string Description);

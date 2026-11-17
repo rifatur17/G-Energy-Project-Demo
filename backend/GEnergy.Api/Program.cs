@@ -41,8 +41,8 @@ builder.Services.AddOptions<WalletOptions>().BindConfiguration("Wallet")
     .Validate(o => o.MaxTransactionAmount > 0 && o.MaxTransactionAmount <= 1000000 && o.MaxBalance >= o.MaxTransactionAmount && o.MaxBalance <= 10000000 && decimal.Round(o.MaxTransactionAmount,2)==o.MaxTransactionAmount && decimal.Round(o.MaxBalance,2)==o.MaxBalance,"Invalid demo wallet limits.").ValidateOnStart();
     builder.Services.AddScoped<IPaymentProvider, MockPaymentProvider>();
     builder.Services.AddScoped<WalletService>();
-// PRD: no stored-value wallet. Charging is postpaid and collected on monthly statements through
-// SSLCommerz. The legacy demo wallet API stays available for existing data and its own tests.
+// Payments go through SSLCommerz: Owners add money to the wallet with a hosted checkout, and the
+// monthly statement collects charges the wallet could not cover plus the owner plan fee.
 builder.Services.AddOptions<BillingOptions>().BindConfiguration("Billing")
     .Validate(o => o.DueDays is >= 1 and <= 60 && o.PlanFeePerVehicle >= 0 && o.FreeMonths is >= 0 and <= 24, "Invalid billing configuration.").ValidateOnStart();
 builder.Services.AddOptions<SslCommerzOptions>().BindConfiguration("SslCommerz")
@@ -52,7 +52,10 @@ builder.Services.AddScoped<DemoSslCommerzGateway>();
 builder.Services.AddScoped<IPaymentGateway>(sp => sp.GetRequiredService<IOptions<SslCommerzOptions>>().Value.UseLiveGateway
     ? sp.GetRequiredService<SslCommerzGateway>() : sp.GetRequiredService<DemoSslCommerzGateway>());
 builder.Services.AddScoped<BillingService>();
-builder.Services.AddScoped<IChargingSettlement, PostpaidChargingSettlement>();
+builder.Services.AddScoped<WalletTopUpService>();
+// Charging bills are paid automatically from the Owner wallet when charging stops. If the balance is
+// too low the session stays Unpaid; it can be paid from the wallet later or lands on the monthly statement.
+builder.Services.AddScoped<IChargingSettlement, WalletChargingSettlement>();
 builder.Services.AddHostedService<ChargingWorker>();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(o =>

@@ -24,6 +24,27 @@ public sealed class BillingStatement
     public string? PaymentReference { get; set; }
     public byte[] RowVersion { get; set; } = [];
 }
+// Adding money to the Owner wallet through the SSLCommerz hosted checkout. The wallet is credited
+// only after the gateway validation confirms the payment (one ledger entry per transaction).
+public sealed class WalletTopUpPayment
+{
+    public long Id { get; set; }
+    public long OwnerUserId { get; set; }
+    public User Owner { get; set; } = null!;
+    public string TranId { get; set; } = "";
+    public string Gateway { get; set; } = "";
+    public decimal Amount { get; set; }
+    public string Currency { get; set; } = "BDT";
+    public string Status { get; set; } = "Initiated"; // Initiated | Paid | Failed | Cancelled
+    public string? ValId { get; set; }
+    public string? BankTranId { get; set; }
+    public string? CardType { get; set; }
+    public string? FailureReason { get; set; }
+    public long? WalletTransactionId { get; set; }
+    public DateTime CreatedAtUtc { get; set; }
+    public DateTime? CompletedAtUtc { get; set; }
+    public byte[] RowVersion { get; set; } = [];
+}
 public sealed class StatementPayment
 {
     public long Id { get; set; }

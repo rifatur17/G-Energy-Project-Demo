@@ -87,7 +87,7 @@ it("shows postpaid totals and never offers a wallet top-up", async () => {
   expect(
     await screen.findByLabelText("Charges not yet billed"),
   ).toHaveTextContent("৳450.00");
-  expect(screen.getByText(/G Energy never holds your money/)).toBeVisible();
+  expect(screen.getByText(/wallet could not cover/)).toBeVisible();
   expect(screen.queryByText(/top-up|add funds/i)).not.toBeInTheDocument();
 });
 

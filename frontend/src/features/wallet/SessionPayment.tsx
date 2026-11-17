@@ -51,7 +51,7 @@ function OwnerPayment({
       <h2>Pay this completed session</h2>
       <p>
         Your final bill is {session.cost.toFixed(2)} {session.currency}. Payment
-        uses your Owner demo wallet.
+        uses your Owner wallet balance.
       </p>
       {error && (
         <p role="alert" className="error">
@@ -64,10 +64,10 @@ function OwnerPayment({
           disabled={busy || session.cost <= 0}
           onClick={() => void pay()}
         >
-          {busy ? "Paying…" : "Pay from demo wallet"}
+          {busy ? "Paying…" : "Pay from wallet"}
         </button>
         <Link className="secondary" to="/wallet">
-          Check balance / add demo funds ↗
+          Check balance / add money ↗
         </Link>
       </div>
     </section>

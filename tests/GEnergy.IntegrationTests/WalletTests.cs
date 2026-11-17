@@ -26,6 +26,7 @@ public static class WalletFixture
     public static Task<ChargingScenario> Create(bool sql = false, WalletFailureProbe? probe = null) => ChargingScenario.Create(sql, configure: services =>
     {
         services.RemoveAll<IChargingSettlement>(); services.AddScoped<IChargingSettlement, WalletChargingSettlement>();
+        services.Configure<WalletOptions>(o => o.AllowSimulatedTopUp = true); // these tests use the instant simulated top-up
         if (probe is not null) services.AddDbContext<EnergyDbContext>(o => o.AddInterceptors(probe));
     }, label: "Member4");
     public static async Task<HttpResponseMessage> TopUp(ChargingScenario s, decimal amount = 1000, string outcome = "Success", string? key = null)
