@@ -235,10 +235,24 @@ function Start-DockerEngine {
     if (Test-DockerEngine $taskDocker) { return $taskDocker }
     $taskDesktop = @((Join-Path $env:LOCALAPPDATA 'Programs\DockerDesktop\Docker Desktop.exe'), (Join-Path $env:ProgramFiles 'Docker\Docker\Docker Desktop.exe')) | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
     if (!$taskDesktop) { throw 'Docker Desktop is not running and could not be found. Start Docker Desktop, then try again.' }
-    Start-Process -FilePath $taskDesktop | Out-Null
+    # Docker runs in the background: its dashboard window is closed to the system tray as soon as it
+    # appears (the same as clicking X), so only the G Energy website opens. Only windows of a Docker
+    # Desktop that this launch started are touched.
+    Start-Process -FilePath $taskDesktop -WindowStyle Minimized | Out-Null
+    $script:taskStartedDocker = $true
     $taskDeadline = [DateTime]::UtcNow.AddSeconds(180)
-    while ([DateTime]::UtcNow -lt $taskDeadline) { Start-Sleep -Seconds 3; if (Test-DockerEngine $taskDocker) { return $taskDocker } }
+    while ([DateTime]::UtcNow -lt $taskDeadline) {
+        Hide-DockerWindow
+        Start-Sleep -Seconds 2
+        if (Test-DockerEngine $taskDocker) { Hide-DockerWindow; return $taskDocker }
+    }
     throw 'Docker Desktop did not finish starting within 3 minutes. Open Docker Desktop, wait until it says "Engine running", then try again.'
+}
+function Hide-DockerWindow {
+    if (!$script:taskStartedDocker) { return }
+    foreach ($taskWindow in @(Get-Process -Name 'Docker Desktop' -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowHandle -ne [IntPtr]::Zero })) {
+        try { [void]$taskWindow.CloseMainWindow() } catch { }
+    }
 }
 function Test-ApiContainer([string]$Docker) {
     $taskInfo = New-Object Diagnostics.ProcessStartInfo $Docker, ('compose -f "{0}" ps --status running -q api' -f (Join-Path $taskRoot 'compose.yaml'))
@@ -380,6 +394,8 @@ try {
         $taskWebEntry = Start-ServiceProcess $taskNode ('"{0}" --host localhost --port 5173 --strictPort' -f $taskVite) $taskWebRoot 'web' $taskVite
     }
     Wait-Ready $taskWebEntry 'http://localhost:5173/'
+    # The dashboard can appear a little after the engine reports ready; hide it once more first.
+    Hide-DockerWindow
     if (!$NoBrowser) { Start-Process 'http://localhost:5173/login' }
     Write-Output "G Energy ready: http://localhost:5173 (API http://localhost:5080). Logs: $taskRuntime"
 } catch {
